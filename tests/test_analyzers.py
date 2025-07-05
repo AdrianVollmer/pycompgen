@@ -100,18 +100,28 @@ class TestDetectCompletionType:
         self, mock_get_python, mock_has_dep, mock_find_commands, tmp_path
     ):
         """Test detection of click completion type."""
+        # Create package directory structure
+        package_base = tmp_path / "packages" / "test-package"
+        package_dir = (
+            package_base / "lib" / "python3.11" / "site-packages" / "test-package"
+        )
+        package_dir.mkdir(parents=True)
+
         mock_package = Mock(spec=InstalledPackage)
+        mock_package.path = package_base
+        mock_package.name = "test-package"
+
         mock_python_path = tmp_path / "fake" / "python"
         mock_python_path.parent.mkdir(parents=True)
         mock_python_path.touch()
         mock_get_python.return_value = mock_python_path
-        mock_has_dep.side_effect = lambda path, dep: dep == "click"
+        mock_has_dep.side_effect = lambda python_path, package_path, dep: dep == "click"
         mock_find_commands.return_value = ["regular-command"]  # No hardcoded commands
 
         result = detect_completion_type(mock_package)
 
         assert result == CompletionType.CLICK
-        mock_has_dep.assert_called_with(mock_python_path, "click")
+        mock_has_dep.assert_called_with(mock_python_path, package_dir, "click")
 
     @patch("pycompgen.analyzers.find_package_commands")
     @patch("pycompgen.analyzers.has_dependency")
@@ -120,12 +130,24 @@ class TestDetectCompletionType:
         self, mock_get_python, mock_has_dep, mock_find_commands, tmp_path
     ):
         """Test detection of argcomplete completion type."""
+        # Create package directory structure
+        package_base = tmp_path / "packages" / "test-package"
+        package_dir = (
+            package_base / "lib" / "python3.11" / "site-packages" / "test-package"
+        )
+        package_dir.mkdir(parents=True)
+
         mock_package = Mock(spec=InstalledPackage)
+        mock_package.path = package_base
+        mock_package.name = "test-package"
+
         mock_python_path = tmp_path / "fake" / "python"
         mock_python_path.parent.mkdir(parents=True)
         mock_python_path.touch()
         mock_get_python.return_value = mock_python_path
-        mock_has_dep.side_effect = lambda path, dep: dep == "argcomplete"
+        mock_has_dep.side_effect = (
+            lambda python_path, package_path, dep: dep == "argcomplete"
+        )
         mock_find_commands.return_value = ["regular-command"]  # No hardcoded commands
 
         result = detect_completion_type(mock_package)
@@ -140,7 +162,17 @@ class TestDetectCompletionType:
         self, mock_get_python, mock_has_dep, mock_find_commands, tmp_path
     ):
         """Test when no completion type is detected."""
+        # Create package directory structure
+        package_base = tmp_path / "packages" / "test-package"
+        package_dir = (
+            package_base / "lib" / "python3.11" / "site-packages" / "test-package"
+        )
+        package_dir.mkdir(parents=True)
+
         mock_package = Mock(spec=InstalledPackage)
+        mock_package.path = package_base
+        mock_package.name = "test-package"
+
         mock_python_path = tmp_path / "fake" / "python"
         mock_python_path.parent.mkdir(parents=True)
         mock_python_path.touch()
@@ -155,10 +187,20 @@ class TestDetectCompletionType:
     @patch("pycompgen.analyzers.find_package_commands")
     @patch("pycompgen.analyzers.get_python_path")
     def test_detect_completion_type_no_python_path(
-        self, mock_get_python, mock_find_commands
+        self, mock_get_python, mock_find_commands, tmp_path
     ):
         """Test when Python path cannot be found."""
+        # Create package directory structure but python path will be None
+        package_base = tmp_path / "packages" / "test-package"
+        package_dir = (
+            package_base / "lib" / "python3.11" / "site-packages" / "test-package"
+        )
+        package_dir.mkdir(parents=True)
+
         mock_package = Mock(spec=InstalledPackage)
+        mock_package.path = package_base
+        mock_package.name = "test-package"
+
         mock_get_python.return_value = None
         mock_find_commands.return_value = ["regular-command"]  # No hardcoded commands
 
@@ -229,8 +271,13 @@ class TestHasDependency:
         python_path = tmp_path / "fake" / "python"
         python_path.parent.mkdir(parents=True)
         python_path.touch()
+        package_dir = tmp_path / "package_dir"
+        package_dir.mkdir()
+        # Create a test file that imports click
+        test_file = package_dir / "test.py"
+        test_file.write_text("import click\n")
 
-        result = has_dependency(python_path, "click")
+        result = has_dependency(python_path, package_dir, "click")
 
         assert result is True
         mock_run.assert_called_once_with(
@@ -247,8 +294,10 @@ class TestHasDependency:
         python_path = tmp_path / "fake" / "python"
         python_path.parent.mkdir(parents=True)
         python_path.touch()
+        package_dir = tmp_path / "package_dir"
+        package_dir.mkdir()
 
-        result = has_dependency(python_path, "nonexistent")
+        result = has_dependency(python_path, package_dir, "nonexistent")
 
         assert result is False
 
@@ -259,8 +308,10 @@ class TestHasDependency:
         python_path = tmp_path / "fake" / "python"
         python_path.parent.mkdir(parents=True)
         python_path.touch()
+        package_dir = tmp_path / "package_dir"
+        package_dir.mkdir()
 
-        result = has_dependency(python_path, "click")
+        result = has_dependency(python_path, package_dir, "click")
 
         assert result is False
 
@@ -271,8 +322,10 @@ class TestHasDependency:
         python_path = tmp_path / "fake" / "python"
         python_path.parent.mkdir(parents=True)
         python_path.touch()
+        package_dir = tmp_path / "package_dir"
+        package_dir.mkdir()
 
-        result = has_dependency(python_path, "click")
+        result = has_dependency(python_path, package_dir, "click")
 
         assert result is False
 
@@ -374,14 +427,24 @@ class TestHardcodedCompletionDetection:
     @patch("pycompgen.analyzers.get_python_path")
     @patch("pycompgen.analyzers.has_dependency")
     def test_detect_completion_type_hardcoded_fallback_to_click(
-        self, mock_has_dependency, mock_get_python_path, mock_find_commands
+        self, mock_has_dependency, mock_get_python_path, mock_find_commands, tmp_path
     ):
         """Test fallback to click when no hardcoded completion found."""
+        # Create package directory structure
+        package_base = tmp_path / "packages" / "some-package"
+        package_dir = (
+            package_base / "lib" / "python3.11" / "site-packages" / "some-package"
+        )
+        package_dir.mkdir(parents=True)
+
         mock_find_commands.return_value = ["regular-command"]
         mock_get_python_path.return_value = Path("/fake/python")
-        mock_has_dependency.side_effect = lambda path, dep: dep == "click"
+        mock_has_dependency.side_effect = (
+            lambda python_path, package_path, dep: dep == "click"
+        )
 
         mock_package = Mock(spec=InstalledPackage)
+        mock_package.path = package_base
         mock_package.name = "some-package"
 
         result = detect_completion_type(mock_package)

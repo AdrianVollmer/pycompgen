@@ -270,12 +270,12 @@ class TestEndToEndWorkflow:
 
             mock_run.side_effect = [
                 # uv tool list
-                Mock(
-                    stdout=f"click-package v1.0.0 (path: {venv_path})\n", returncode=0
-                ),
+                Mock(stdout=f"click-package v1.0.0 ({venv_path})\n", returncode=0),
                 # pipx list (fails)
                 subprocess.CalledProcessError(1, ["pipx"]),
-                # click import succeeds
+                # package import check in fallback
+                Mock(returncode=0),
+                # click import check in fallback
                 Mock(returncode=0),
                 # click completion generation
                 Mock(stdout="click completion output", returncode=0),
@@ -323,9 +323,11 @@ class TestEndToEndWorkflow:
             subprocess.CalledProcessError(1, ["uv"]),
             # pipx list
             Mock(stdout=json.dumps(pipx_output), returncode=0),
-            # click import fails
+            # package import check in fallback
+            Mock(returncode=0),
+            # click import check in fallback (fails)
             Mock(returncode=1),
-            # argcomplete import succeeds
+            # argcomplete import check in fallback (succeeds)
             Mock(returncode=0),
             # argcomplete completion generation
             Mock(stdout="argcomplete completion output", returncode=0),

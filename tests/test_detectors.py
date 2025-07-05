@@ -37,8 +37,8 @@ class TestDetectUvPackages:
     def test_detect_uv_packages_success(self, mock_run):
         """Test successful uv tool detection."""
         mock_run.return_value = Mock(
-            stdout="test-package v1.0.0 (path: /fake/path/to/venv)\n"
-            "another-package v2.0.0 (path: /fake/path/to/another)\n",
+            stdout="test-package v1.0.0 (/fake/path/to/venv)\n"
+            "another-package v2.0.0 (/fake/path/to/another)\n",
             returncode=0,
         )
 
@@ -117,9 +117,9 @@ class TestParseUvOutput:
 
     def test_parse_uv_output_valid_format(self):
         """Test parsing valid uv tool output."""
-        output = """test-package v1.0.0 (path: /fake/path/to/venv)
+        output = """test-package v1.0.0 (/fake/path/to/venv)
 - test-cmd (/fake/path/to/venv/bin/test-cmd)
-another-package v2.1.0 (path: /another/path)
+another-package v2.1.0 (/another/path)
 - another-cmd (/another/path/bin/another-cmd)
 - second-cmd (/another/path/bin/second-cmd)
 """

@@ -21,6 +21,10 @@ def detect_uv_packages() -> List[InstalledPackage]:
     # $ uv tool list --show-paths
     #  bagels v0.3.6 (/home/user/.local/share/uv/tools/bagels)
     #  - bagels (/home/user/.local/bin/bagels)
+    #  coercer v2.4.3 (/home/adrian/.local/share/uv/tools/coercer)
+    #  - coercer (/home/adrian/.local/bin/coercer)
+    #  pycompgen v0.1.0 (/home/adrian/.local/share/uv/tools/pycompgen)
+    #  - pycompgen (/home/adrian/.local/bin/pycompgen)
 
     try:
         result = subprocess.run(
@@ -110,13 +114,9 @@ def parse_uv_output(output: str) -> List[InstalledPackage]:
             name = parts[0]
             version = parts[1].lstrip("v")
 
-            # Extract path from parentheses
-            if (
-                len(parts) > 2
-                and parts[2].startswith("(path: ")
-                and parts[2].endswith(")")
-            ):
-                path_str = parts[2][7:-1]  # Remove "(path: " and ")"
+            # Extract path from parentheses - new format: "(/path/to/package)"
+            if len(parts) > 2 and parts[2].startswith("(") and parts[2].endswith(")"):
+                path_str = parts[2][1:-1]  # Remove "(" and ")"
                 path = Path(path_str)
             else:
                 # If no path info, skip this package

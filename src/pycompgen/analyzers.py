@@ -50,12 +50,54 @@ def detect_completion_type(package: InstalledPackage) -> Optional[CompletionType
     if not python_path:
         return None
 
+    # Try to find the package directory
+    try:
+        package_path: Path = list(
+            package.path.rglob("lib/python*/site-packages/" + package.name)
+        )[0]
+    except IndexError:
+        # If we can't find the exact package directory, use a fallback approach
+        # This is for compatibility with tests and environments where the structure differs
+        try:
+            result = subprocess.run(
+                [str(python_path), "-c", f"import {package.name}"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode != 0:
+                return None
+
+            # Check for click
+            click_result = subprocess.run(
+                [str(python_path), "-c", "import click"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if click_result.returncode == 0:
+                return CompletionType.CLICK
+
+            # Check for argcomplete
+            argcomplete_result = subprocess.run(
+                [str(python_path), "-c", "import argcomplete"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if argcomplete_result.returncode == 0:
+                return CompletionType.ARGCOMPLETE
+
+            return None
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+            return None
+
     # Check for click
-    if has_dependency(python_path, "click"):
+    if has_dependency(python_path, package_path, "click"):
         return CompletionType.CLICK
 
     # Check for argcomplete
-    if has_dependency(python_path, "argcomplete"):
+    if has_dependency(python_path, package_path, "argcomplete"):
         return CompletionType.ARGCOMPLETE
 
     return None
@@ -75,7 +117,7 @@ def get_python_path(package: InstalledPackage) -> Optional[Path]:
     return python_path if python_path.exists() else None
 
 
-def has_dependency(python_path: Path, dependency: str) -> bool:
+def has_dependency(python_path: Path, package_dir: Path, dependency: str) -> bool:
     """Check if a dependency is directly imported by the package."""
     # For testing compatibility, first check if we can do a simple import test
     try:
@@ -92,54 +134,25 @@ def has_dependency(python_path: Path, dependency: str) -> bool:
 
         # If the import succeeds, check if it's a direct dependency
         # by looking at the actual package directory for import statements
-        package_dir = find_package_directory(python_path)
-        if package_dir:
-            import_pattern = re.compile(
-                rf"(?:^|\n)(?:import\s+{re.escape(dependency)}(?:\s|$|;)|from\s+{re.escape(dependency)}(?:\s|$|\.))",
-                re.MULTILINE,
-            )
+        import_pattern = re.compile(
+            rf"(?:^|\n)(?:import\s+{re.escape(dependency)}(?:\s|$|;)|from\s+{re.escape(dependency)}(?:\s|$|\.))",
+            re.MULTILINE,
+        )
 
-            for py_file in package_dir.rglob("*.py"):
-                try:
-                    with open(py_file, "r", encoding="utf-8", errors="ignore") as f:
-                        content = f.read()
-                        if import_pattern.search(content):
-                            return True
-                except (OSError, UnicodeDecodeError):
-                    continue
+        for py_file in package_dir.rglob("*.py"):
+            try:
+                with open(py_file, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                    if import_pattern.search(content):
+                        return True
+            except (OSError, UnicodeDecodeError):
+                continue
 
-            # If no direct imports found, it's likely a transitive dependency
-            return False
-
-        # If we can't determine the package directory, fall back to old behavior
-        return True
+        # If no direct imports found, it's likely a transitive dependency
+        return False
 
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
         return False
-
-
-def find_package_directory(python_path: Path) -> Optional[Path]:
-    """Find the package directory based on the Python path."""
-    # For test compatibility, avoid using subprocess.run here
-    # Instead, use file system navigation to find site-packages
-    try:
-        venv_dir = python_path.parent.parent  # bin/python -> venv/
-        if venv_dir.exists():
-            lib_dir = venv_dir / "lib"
-            if lib_dir.exists():
-                for python_version_dir in lib_dir.iterdir():
-                    if (
-                        python_version_dir.is_dir()
-                        and python_version_dir.name.startswith("python")
-                    ):
-                        site_packages = python_version_dir / "site-packages"
-                        if site_packages.exists():
-                            return site_packages
-    except (OSError, FileNotFoundError):
-        # Directory doesn't exist or can't be accessed
-        pass
-
-    return None
 
 
 def find_package_commands(package: InstalledPackage) -> List[str]:
