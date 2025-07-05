@@ -6,7 +6,7 @@ from pathlib import Path
 
 def setup_logging(verbose: bool = False) -> logging.Logger:
     """Set up logging configuration."""
-    logger = logging.getLogger("compgen")
+    logger = logging.getLogger("pycompgen")
 
     # Remove existing handlers
     for handler in logger.handlers[:]:
@@ -18,7 +18,7 @@ def setup_logging(verbose: bool = False) -> logging.Logger:
 
     # Get log directory
     log_dir = get_log_dir()
-    log_file = log_dir / "compgen.log"
+    log_file = log_dir / "pycompgen.log"
 
     # Create rotating file handler
     file_handler = logging.handlers.RotatingFileHandler(
@@ -50,9 +50,9 @@ def get_log_dir() -> Path:
     # Use XDG_STATE_HOME if set, otherwise use ~/.local/state
     state_home = os.environ.get("XDG_STATE_HOME")
     if state_home:
-        log_dir = Path(state_home) / "compgen"
+        log_dir = Path(state_home) / "pycompgen"
     else:
-        log_dir = Path.home() / ".local" / "state" / "compgen"
+        log_dir = Path.home() / ".local" / "state" / "pycompgen"
 
     # Create directory if it doesn't exist
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -60,5 +60,5 @@ def get_log_dir() -> Path:
 
 
 def get_logger() -> logging.Logger:
-    """Get the compgen logger."""
-    return logging.getLogger("compgen")
+    """Get the pycompgen logger."""
+    return logging.getLogger("pycompgen")

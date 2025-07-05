@@ -91,7 +91,7 @@ def find_package_commands(package: InstalledPackage) -> List[str]:
         if bin_dir.exists():
             for item in bin_dir.iterdir():
                 if item.is_file() and item.stat().st_mode & 0o111:  # executable
-                    if not item.name.startswith(("python", "pip", "wheel")):
+                    if item.name not in ("python", "python3", "pip", "pip3", "wheel"):
                         commands.append(item.name)
 
     # For pipx, the command is typically the package name itself
@@ -101,7 +101,7 @@ def find_package_commands(package: InstalledPackage) -> List[str]:
         if bin_dir.exists():
             for item in bin_dir.iterdir():
                 if item.is_file() and item.stat().st_mode & 0o111:  # executable
-                    if not item.name.startswith(("python", "pip", "wheel")):
+                    if item.name not in ("python", "python3", "pip", "pip3", "wheel"):
                         commands.append(item.name)
 
     # If no commands found, try the package name itself
