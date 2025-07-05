@@ -18,6 +18,7 @@ from pycompgen.models import (
     GeneratedCompletion,
     CompletionType,
     InstalledPackage,
+    Shell,
 )
 
 
@@ -28,26 +29,24 @@ class TestGenerateCompletions:
     def test_generate_completions_success(self, mock_generate):
         """Test successful completion generation."""
         mock_packages = [Mock(), Mock()]
-        mock_completions = [
-            Mock(spec=GeneratedCompletion),
-            Mock(spec=GeneratedCompletion),
-        ]
-        mock_generate.side_effect = mock_completions
+        mock_completions1 = [Mock(spec=GeneratedCompletion), Mock(spec=GeneratedCompletion)]
+        mock_completions2 = [Mock(spec=GeneratedCompletion)]
+        mock_generate.side_effect = [mock_completions1, mock_completions2]
 
         result = generate_completions(mock_packages)
 
-        assert len(result) == 2
-        assert result == mock_completions
+        assert len(result) == 3
+        assert result == mock_completions1 + mock_completions2
         assert mock_generate.call_count == 2
 
     @patch("pycompgen.generators.generate_completion")
-    def test_generate_completions_filters_none(self, mock_generate):
-        """Test that None results are filtered out."""
+    def test_generate_completions_empty_results(self, mock_generate):
+        """Test that empty results are handled."""
         mock_packages = [Mock(), Mock(), Mock()]
         mock_generate.side_effect = [
-            Mock(spec=GeneratedCompletion),
-            None,  # Failed generation
-            Mock(spec=GeneratedCompletion),
+            [Mock(spec=GeneratedCompletion)],
+            [],  # Failed generation
+            [Mock(spec=GeneratedCompletion)],
         ]
 
         result = generate_completions(mock_packages)
@@ -85,29 +84,29 @@ class TestGenerateCompletion:
     @patch("pycompgen.generators.generate_click_completion")
     def test_generate_completion_click(self, mock_generate_click):
         """Test generation for click package."""
-        mock_completion = Mock(spec=GeneratedCompletion)
-        mock_generate_click.return_value = mock_completion
+        mock_completions = [Mock(spec=GeneratedCompletion), Mock(spec=GeneratedCompletion)]
+        mock_generate_click.return_value = mock_completions
 
         mock_package = Mock(spec=CompletionPackage)
         mock_package.completion_type = CompletionType.CLICK
 
         result = generate_completion(mock_package)
 
-        assert result == mock_completion
+        assert result == mock_completions
         mock_generate_click.assert_called_once_with(mock_package)
 
     @patch("pycompgen.generators.generate_argcomplete_completion")
     def test_generate_completion_argcomplete(self, mock_generate_argcomplete):
         """Test generation for argcomplete package."""
-        mock_completion = Mock(spec=GeneratedCompletion)
-        mock_generate_argcomplete.return_value = mock_completion
+        mock_completions = [Mock(spec=GeneratedCompletion)]
+        mock_generate_argcomplete.return_value = mock_completions
 
         mock_package = Mock(spec=CompletionPackage)
         mock_package.completion_type = CompletionType.ARGCOMPLETE
 
         result = generate_completion(mock_package)
 
-        assert result == mock_completion
+        assert result == mock_completions
         mock_generate_argcomplete.assert_called_once_with(mock_package)
 
     def test_generate_completion_unknown_type(self):
@@ -117,7 +116,7 @@ class TestGenerateCompletion:
 
         result = generate_completion(mock_package)
 
-        assert result is None
+        assert result == []
 
 
 class TestGenerateClickCompletion:

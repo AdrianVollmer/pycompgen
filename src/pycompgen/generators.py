@@ -2,7 +2,7 @@ import os
 import subprocess
 from typing import List, Optional, Dict, Literal
 
-from .models import CompletionPackage, GeneratedCompletion, CompletionType
+from .models import CompletionPackage, GeneratedCompletion, CompletionType, Shell
 from .logger import get_logger
 
 # Global error collector for summarizing errors at the end
@@ -19,9 +19,8 @@ def generate_completions(
     _completion_errors.clear()  # Reset error list
 
     for package in packages:
-        completion = generate_completion(package)
-        if completion:
-            completions.append(completion)
+        package_completions = generate_completion(package)
+        completions.extend(package_completions)
 
     # Log summary of errors if any occurred
     if _completion_errors:
@@ -32,53 +31,65 @@ def generate_completions(
     return completions
 
 
-def generate_completion(package: CompletionPackage) -> Optional[GeneratedCompletion]:
-    """Generate completion for a single package."""
+def generate_completion(package: CompletionPackage) -> List[GeneratedCompletion]:
+    """Generate completions for a single package (multiple shells)."""
+    completions = []
+    
     if package.completion_type == CompletionType.CLICK:
-        return generate_click_completion(package)
+        completions.extend(generate_click_completion(package))
     elif package.completion_type == CompletionType.ARGCOMPLETE:
-        return generate_argcomplete_completion(package)
+        completions.extend(generate_argcomplete_completion(package))
 
-    return None
+    return completions
 
 
 def generate_click_completion(
     package: CompletionPackage,
-) -> Optional[GeneratedCompletion]:
-    """Generate click completion script."""
-    completion_parts = []
-
+) -> List[GeneratedCompletion]:
+    """Generate click completion scripts for multiple shells."""
+    completions = []
+    
+    # Generate bash completions
+    bash_parts = []
     for command in package.commands:
-        # Generate for both bash and zsh
         bash_completion = generate_click_shell_completion(command, shell="bash")
+        if bash_completion:
+            bash_parts.append(f"# Completion for {command}\n{bash_completion}")
+    
+    if bash_parts:
+        bash_content = "\n".join(bash_parts)
+        completions.append(GeneratedCompletion(
+            package_name=package.package.name,
+            completion_type=CompletionType.CLICK,
+            content=bash_content,
+            commands=package.commands,
+            shell=Shell.BASH,
+        ))
+    
+    # Generate zsh completions
+    zsh_parts = []
+    for command in package.commands:
         zsh_completion = generate_click_shell_completion(command, shell="zsh")
+        if zsh_completion:
+            zsh_parts.append(f"# Completion for {command}\n{zsh_completion}")
+    
+    if zsh_parts:
+        zsh_content = "\n".join(zsh_parts)
+        completions.append(GeneratedCompletion(
+            package_name=package.package.name,
+            completion_type=CompletionType.CLICK,
+            content=zsh_content,
+            commands=package.commands,
+            shell=Shell.ZSH,
+        ))
 
-        if bash_completion or zsh_completion:
-            command_completion = f"# Completion for {command}\n"
-            if bash_completion:
-                command_completion += f"# Bash completion\n{bash_completion}\n"
-            if zsh_completion:
-                command_completion += f"# Zsh completion\n{zsh_completion}\n"
-            completion_parts.append(command_completion)
-
-    if not completion_parts:
-        return None
-
-    # Combine all completions
-    content = "\n".join(completion_parts)
-
-    return GeneratedCompletion(
-        package_name=package.package.name,
-        completion_type=CompletionType.CLICK,
-        content=content,
-        commands=package.commands,
-    )
+    return completions
 
 
 def generate_argcomplete_completion(
     package: CompletionPackage,
-) -> Optional[GeneratedCompletion]:
-    """Generate argcomplete completion script."""
+) -> List[GeneratedCompletion]:
+    """Generate argcomplete completion script (bash only)."""
     completion_parts = []
 
     for command in package.commands:
@@ -87,17 +98,18 @@ def generate_argcomplete_completion(
             completion_parts.append(f"# Completion for {command}\n{bash_completion}")
 
     if not completion_parts:
-        return None
+        return []
 
     # Combine all completions
     content = "\n".join(completion_parts)
 
-    return GeneratedCompletion(
+    return [GeneratedCompletion(
         package_name=package.package.name,
         completion_type=CompletionType.ARGCOMPLETE,
         content=content,
         commands=package.commands,
-    )
+        shell=Shell.BASH,
+    )]
 
 
 def _run_completion_command(

@@ -14,6 +14,11 @@ class CompletionType(Enum):
     ARGCOMPLETE = "argcomplete"
 
 
+class Shell(Enum):
+    BASH = "bash"
+    ZSH = "zsh"
+
+
 @dataclass
 class InstalledPackage:
     name: str
@@ -36,3 +41,4 @@ class GeneratedCompletion:
     completion_type: CompletionType
     content: str
     commands: List[str]
+    shell: Shell

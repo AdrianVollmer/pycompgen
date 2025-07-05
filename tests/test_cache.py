@@ -7,7 +7,7 @@ from pycompgen.cache import (
     save_source_script,
     generate_source_script,
 )
-from pycompgen.models import GeneratedCompletion, CompletionType
+from pycompgen.models import GeneratedCompletion, CompletionType, Shell
 
 
 class TestGetCacheDir:
@@ -54,26 +54,28 @@ class TestSaveCompletions:
                 completion_type=CompletionType.CLICK,
                 content="test completion content",
                 commands=["test-command"],
+                shell=Shell.BASH,
             ),
             GeneratedCompletion(
                 package_name="another-package",
                 completion_type=CompletionType.ARGCOMPLETE,
                 content="another completion content",
                 commands=["another-command"],
+                shell=Shell.ZSH,
             ),
         ]
 
         save_completions(completions, temp_dir)
 
-        # Check that files were created
-        assert (temp_dir / "test-package.sh").exists()
-        assert (temp_dir / "another-package.sh").exists()
+        # Check that files were created with shell-specific names
+        assert (temp_dir / "test-package.bash.sh").exists()
+        assert (temp_dir / "another-package.zsh.sh").exists()
 
         # Check content
-        content1 = (temp_dir / "test-package.sh").read_text()
+        content1 = (temp_dir / "test-package.bash.sh").read_text()
         assert "test completion content" in content1
 
-        content2 = (temp_dir / "another-package.sh").read_text()
+        content2 = (temp_dir / "another-package.zsh.sh").read_text()
         assert "another completion content" in content2
 
     def test_save_completions_creates_directory(self, temp_dir):
@@ -87,17 +89,18 @@ class TestSaveCompletions:
                 completion_type=CompletionType.CLICK,
                 content="test content",
                 commands=["test-command"],
+                shell=Shell.BASH,
             )
         ]
 
         save_completions(completions, cache_dir)
 
         assert cache_dir.exists()
-        assert (cache_dir / "test-package.sh").exists()
+        assert (cache_dir / "test-package.bash.sh").exists()
 
     def test_save_completions_no_overwrite_without_force(self, temp_dir):
         """Test that existing files are not overwritten without force."""
-        completion_file = temp_dir / "test-package.sh"
+        completion_file = temp_dir / "test-package.bash.sh"
         completion_file.write_text("original content")
         original_mtime = completion_file.stat().st_mtime
 
@@ -107,6 +110,7 @@ class TestSaveCompletions:
                 completion_type=CompletionType.CLICK,
                 content="new content",
                 commands=["test-command"],
+                shell=Shell.BASH,
             )
         ]
 
@@ -118,7 +122,7 @@ class TestSaveCompletions:
 
     def test_save_completions_overwrite_with_force(self, temp_dir):
         """Test that existing files are overwritten with force."""
-        completion_file = temp_dir / "test-package.sh"
+        completion_file = temp_dir / "test-package.bash.sh"
         completion_file.write_text("original content")
 
         completions = [
@@ -127,6 +131,7 @@ class TestSaveCompletions:
                 completion_type=CompletionType.CLICK,
                 content="new content",
                 commands=["test-command"],
+                shell=Shell.BASH,
             )
         ]
 
@@ -154,6 +159,7 @@ class TestSaveCompletions:
                 completion_type=CompletionType.CLICK,
                 content="test content",
                 commands=["test-command"],
+                shell=Shell.BASH,
             )
         ]
 
@@ -168,9 +174,9 @@ class TestSaveSourceScript:
 
     def test_save_source_script_success(self, temp_dir):
         """Test successful source script saving."""
-        # Create some completion files
-        (temp_dir / "package1.sh").write_text("completion 1")
-        (temp_dir / "package2.sh").write_text("completion 2")
+        # Create some completion files with shell-specific names
+        (temp_dir / "package1.bash.sh").write_text("completion 1")
+        (temp_dir / "package2.zsh.sh").write_text("completion 2")
 
         result = save_source_script(temp_dir)
 
@@ -179,8 +185,9 @@ class TestSaveSourceScript:
 
         content = result.read_text()
         assert "source" in content
-        assert "package1.sh" in content
-        assert "package2.sh" in content
+        assert "case" in content  # Should contain shell detection logic
+        assert "package1.bash.sh" in content
+        assert "package2.zsh.sh" in content
 
     def test_save_source_script_empty_directory(self, temp_dir):
         """Test source script with empty directory."""
