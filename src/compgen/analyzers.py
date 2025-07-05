@@ -1,7 +1,6 @@
 import subprocess
-import sys
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import List, Optional
 
 from .models import InstalledPackage, CompletionPackage, CompletionType, PackageManager
 
@@ -9,12 +8,12 @@ from .models import InstalledPackage, CompletionPackage, CompletionType, Package
 def analyze_packages(packages: List[InstalledPackage]) -> List[CompletionPackage]:
     """Analyze packages to determine which support completions."""
     completion_packages = []
-    
+
     for package in packages:
         completion_info = analyze_package(package)
         if completion_info:
             completion_packages.append(completion_info)
-    
+
     return completion_packages
 
 
@@ -24,16 +23,14 @@ def analyze_package(package: InstalledPackage) -> Optional[CompletionPackage]:
     completion_type = detect_completion_type(package)
     if not completion_type:
         return None
-    
+
     # Try to find the main command(s) for the package
     commands = find_package_commands(package)
     if not commands:
         return None
-    
+
     return CompletionPackage(
-        package=package,
-        completion_type=completion_type,
-        commands=commands
+        package=package, completion_type=completion_type, commands=commands
     )
 
 
@@ -43,15 +40,15 @@ def detect_completion_type(package: InstalledPackage) -> Optional[CompletionType
     python_path = get_python_path(package)
     if not python_path:
         return None
-    
+
     # Check for click
     if has_dependency(python_path, "click"):
         return CompletionType.CLICK
-    
+
     # Check for argcomplete
     if has_dependency(python_path, "argcomplete"):
         return CompletionType.ARGCOMPLETE
-    
+
     return None
 
 
@@ -65,7 +62,7 @@ def get_python_path(package: InstalledPackage) -> Optional[Path]:
         python_path = package.path / "bin" / "python"
     else:
         return None
-    
+
     return python_path if python_path.exists() else None
 
 
@@ -86,16 +83,16 @@ def has_dependency(python_path: Path, dependency: str) -> bool:
 def find_package_commands(package: InstalledPackage) -> List[str]:
     """Find the main command(s) for a package."""
     commands = []
-    
+
     # For uv tool, check bin directory
     if package.manager == PackageManager.UV_TOOL:
         bin_dir = package.path / "bin"
         if bin_dir.exists():
             for item in bin_dir.iterdir():
                 if item.is_file() and item.stat().st_mode & 0o111:  # executable
-                    if not item.name.startswith(('python', 'pip', 'wheel')):
+                    if not item.name.startswith(("python", "pip", "wheel")):
                         commands.append(item.name)
-    
+
     # For pipx, the command is typically the package name itself
     elif package.manager == PackageManager.PIPX:
         # Check if there's a script with the package name
@@ -103,13 +100,13 @@ def find_package_commands(package: InstalledPackage) -> List[str]:
         if bin_dir.exists():
             for item in bin_dir.iterdir():
                 if item.is_file() and item.stat().st_mode & 0o111:  # executable
-                    if not item.name.startswith(('python', 'pip', 'wheel')):
+                    if not item.name.startswith(("python", "pip", "wheel")):
                         commands.append(item.name)
-    
+
     # If no commands found, try the package name itself
     if not commands:
         commands.append(package.name)
-    
+
     return commands
 
 
@@ -118,7 +115,7 @@ def verify_completion_support(package: CompletionPackage) -> bool:
     python_path = get_python_path(package.package)
     if not python_path:
         return False
-    
+
     for command in package.commands:
         if package.completion_type == CompletionType.CLICK:
             # Try to generate click completion
@@ -128,7 +125,7 @@ def verify_completion_support(package: CompletionPackage) -> bool:
             # Try to verify argcomplete support
             if test_argcomplete_completion(python_path, command):
                 return True
-    
+
     return False
 
 
@@ -137,7 +134,7 @@ def test_click_completion(python_path: Path, command: str) -> bool:
     try:
         # Try to get click completion
         result = subprocess.run(
-            [str(python_path), "-c", f"import click; print('click available')"],
+            [str(python_path), "-c", "import click; print('click available')"],
             capture_output=True,
             text=True,
             timeout=5,
@@ -152,7 +149,11 @@ def test_argcomplete_completion(python_path: Path, command: str) -> bool:
     try:
         # Try to get argcomplete completion
         result = subprocess.run(
-            [str(python_path), "-c", f"import argcomplete; print('argcomplete available')"],
+            [
+                str(python_path),
+                "-c",
+                "import argcomplete; print('argcomplete available')",
+            ],
             capture_output=True,
             text=True,
             timeout=5,
