@@ -267,80 +267,49 @@ class TestFindPackageCommands:
     """Test command discovery."""
 
     def test_find_package_commands_uv_tool(self, temp_dir):
-        """Test finding commands for uv tool package."""
+        """Test finding commands for uv tool package with commands from package manager."""
         mock_package = Mock(spec=InstalledPackage)
         mock_package.manager = PackageManager.UV_TOOL
         mock_package.path = temp_dir
         mock_package.name = "test-package"
-
-        # Create bin directory with executable files
-        bin_dir = temp_dir / "bin"
-        bin_dir.mkdir()
-
-        # Create executable commands
-        (bin_dir / "test-command").touch()
-        (bin_dir / "test-command").chmod(0o755)
-
-        # Create non-executable file
-        (bin_dir / "non-executable").touch()
-
-        # Create python/pip executables (should be ignored)
-        (bin_dir / "python").touch()
-        (bin_dir / "python").chmod(0o755)
-        (bin_dir / "pip").touch()
-        (bin_dir / "pip").chmod(0o755)
-        (bin_dir / "wheel").touch()
-        (bin_dir / "wheel").chmod(0o755)
+        mock_package.commands = ["test-command", "another-cmd"]
 
         result = find_package_commands(mock_package)
 
-        assert "test-command" in result
-        assert "python" not in result
-        assert "pip" not in result
-        assert "wheel" not in result
-        assert "non-executable" not in result
+        assert result == ["test-command", "another-cmd"]
 
     def test_find_package_commands_pipx(self, temp_dir):
-        """Test finding commands for pipx package."""
+        """Test finding commands for pipx package with commands from package manager."""
         mock_package = Mock(spec=InstalledPackage)
         mock_package.manager = PackageManager.PIPX
         mock_package.path = temp_dir
         mock_package.name = "pipx-package"
-
-        # Create bin directory with executable files
-        bin_dir = temp_dir / "bin"
-        bin_dir.mkdir()
-
-        (bin_dir / "pipx-command").touch()
-        (bin_dir / "pipx-command").chmod(0o755)
+        mock_package.commands = ["pipx-command"]
 
         result = find_package_commands(mock_package)
 
-        assert "pipx-command" in result
+        assert result == ["pipx-command"]
 
-    def test_find_package_commands_no_bin_dir(self, tmp_path):
-        """Test when bin directory doesn't exist."""
+    def test_find_package_commands_no_commands(self, tmp_path):
+        """Test fallback when no commands are available."""
         mock_package = Mock(spec=InstalledPackage)
         mock_package.manager = PackageManager.UV_TOOL
-        nonexistent_path = tmp_path / "nonexistent"
-        mock_package.path = nonexistent_path
+        mock_package.path = tmp_path
         mock_package.name = "test-package"
+        mock_package.commands = None
 
         result = find_package_commands(mock_package)
 
         # Should fall back to package name
         assert result == ["test-package"]
 
-    def test_find_package_commands_empty_bin_dir(self, temp_dir):
-        """Test when bin directory is empty."""
+    def test_find_package_commands_empty_commands(self, temp_dir):
+        """Test fallback when commands list is empty."""
         mock_package = Mock(spec=InstalledPackage)
         mock_package.manager = PackageManager.UV_TOOL
         mock_package.path = temp_dir
         mock_package.name = "test-package"
-
-        # Create empty bin directory
-        bin_dir = temp_dir / "bin"
-        bin_dir.mkdir()
+        mock_package.commands = []
 
         result = find_package_commands(mock_package)
 
