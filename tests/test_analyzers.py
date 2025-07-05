@@ -95,10 +95,12 @@ class TestDetectCompletionType:
 
     @patch('pycompgen.analyzers.has_dependency')
     @patch('pycompgen.analyzers.get_python_path')
-    def test_detect_completion_type_click(self, mock_get_python, mock_has_dep):
+    def test_detect_completion_type_click(self, mock_get_python, mock_has_dep, tmp_path):
         """Test detection of click completion type."""
         mock_package = Mock(spec=InstalledPackage)
-        mock_python_path = Path("/fake/python")
+        mock_python_path = tmp_path / "fake" / "python"
+        mock_python_path.parent.mkdir(parents=True)
+        mock_python_path.touch()
         mock_get_python.return_value = mock_python_path
         mock_has_dep.side_effect = lambda path, dep: dep == "click"
         
@@ -109,10 +111,12 @@ class TestDetectCompletionType:
 
     @patch('pycompgen.analyzers.has_dependency')
     @patch('pycompgen.analyzers.get_python_path')
-    def test_detect_completion_type_argcomplete(self, mock_get_python, mock_has_dep):
+    def test_detect_completion_type_argcomplete(self, mock_get_python, mock_has_dep, tmp_path):
         """Test detection of argcomplete completion type."""
         mock_package = Mock(spec=InstalledPackage)
-        mock_python_path = Path("/fake/python")
+        mock_python_path = tmp_path / "fake" / "python"
+        mock_python_path.parent.mkdir(parents=True)
+        mock_python_path.touch()
         mock_get_python.return_value = mock_python_path
         mock_has_dep.side_effect = lambda path, dep: dep == "argcomplete"
         
@@ -123,10 +127,12 @@ class TestDetectCompletionType:
 
     @patch('pycompgen.analyzers.has_dependency')
     @patch('pycompgen.analyzers.get_python_path')
-    def test_detect_completion_type_none(self, mock_get_python, mock_has_dep):
+    def test_detect_completion_type_none(self, mock_get_python, mock_has_dep, tmp_path):
         """Test when no completion type is detected."""
         mock_package = Mock(spec=InstalledPackage)
-        mock_python_path = Path("/fake/python")
+        mock_python_path = tmp_path / "fake" / "python"
+        mock_python_path.parent.mkdir(parents=True)
+        mock_python_path.touch()
         mock_get_python.return_value = mock_python_path
         mock_has_dep.return_value = False
         
@@ -148,33 +154,39 @@ class TestDetectCompletionType:
 class TestGetPythonPath:
     """Test Python path resolution."""
 
-    def test_get_python_path_uv_tool(self):
+    def test_get_python_path_uv_tool(self, tmp_path):
         """Test Python path for uv tool package."""
         mock_package = Mock(spec=InstalledPackage)
         mock_package.manager = PackageManager.UV_TOOL
-        mock_package.path = Path("/fake/venv")
+        fake_venv = tmp_path / "fake" / "venv"
+        fake_venv.mkdir(parents=True)
+        mock_package.path = fake_venv
         
         with patch('pathlib.Path.exists', return_value=True):
             result = get_python_path(mock_package)
             
-            assert result == Path("/fake/venv/bin/python")
+            assert result == fake_venv / "bin" / "python"
 
-    def test_get_python_path_pipx(self):
+    def test_get_python_path_pipx(self, tmp_path):
         """Test Python path for pipx package."""
         mock_package = Mock(spec=InstalledPackage)
         mock_package.manager = PackageManager.PIPX
-        mock_package.path = Path("/fake/pipx/venv")
+        fake_pipx_venv = tmp_path / "fake" / "pipx" / "venv"
+        fake_pipx_venv.mkdir(parents=True)
+        mock_package.path = fake_pipx_venv
         
         with patch('pathlib.Path.exists', return_value=True):
             result = get_python_path(mock_package)
             
-            assert result == Path("/fake/pipx/venv/bin/python")
+            assert result == fake_pipx_venv / "bin" / "python"
 
-    def test_get_python_path_does_not_exist(self):
+    def test_get_python_path_does_not_exist(self, tmp_path):
         """Test when Python path does not exist."""
         mock_package = Mock(spec=InstalledPackage)
         mock_package.manager = PackageManager.UV_TOOL
-        mock_package.path = Path("/fake/venv")
+        fake_venv = tmp_path / "fake" / "venv"
+        fake_venv.mkdir(parents=True)
+        mock_package.path = fake_venv
         
         with patch('pathlib.Path.exists', return_value=False):
             result = get_python_path(mock_package)
@@ -195,10 +207,12 @@ class TestHasDependency:
     """Test dependency detection."""
 
     @patch('subprocess.run')
-    def test_has_dependency_success(self, mock_run):
+    def test_has_dependency_success(self, mock_run, tmp_path):
         """Test successful dependency detection."""
         mock_run.return_value = Mock(returncode=0)
-        python_path = Path("/fake/python")
+        python_path = tmp_path / "fake" / "python"
+        python_path.parent.mkdir(parents=True)
+        python_path.touch()
         
         result = has_dependency(python_path, "click")
         
@@ -211,30 +225,36 @@ class TestHasDependency:
         )
 
     @patch('subprocess.run')
-    def test_has_dependency_import_error(self, mock_run):
+    def test_has_dependency_import_error(self, mock_run, tmp_path):
         """Test when dependency import fails."""
         mock_run.return_value = Mock(returncode=1)
-        python_path = Path("/fake/python")
+        python_path = tmp_path / "fake" / "python"
+        python_path.parent.mkdir(parents=True)
+        python_path.touch()
         
         result = has_dependency(python_path, "nonexistent")
         
         assert result is False
 
     @patch('subprocess.run')
-    def test_has_dependency_timeout(self, mock_run):
+    def test_has_dependency_timeout(self, mock_run, tmp_path):
         """Test when dependency check times out."""
         mock_run.side_effect = subprocess.TimeoutExpired(cmd=["python"], timeout=5)
-        python_path = Path("/fake/python")
+        python_path = tmp_path / "fake" / "python"
+        python_path.parent.mkdir(parents=True)
+        python_path.touch()
         
         result = has_dependency(python_path, "click")
         
         assert result is False
 
     @patch('subprocess.run')
-    def test_has_dependency_process_error(self, mock_run):
+    def test_has_dependency_process_error(self, mock_run, tmp_path):
         """Test when subprocess fails."""
         mock_run.side_effect = subprocess.CalledProcessError(1, ["python"])
-        python_path = Path("/fake/python")
+        python_path = tmp_path / "fake" / "python"
+        python_path.parent.mkdir(parents=True)
+        python_path.touch()
         
         result = has_dependency(python_path, "click")
         
@@ -296,11 +316,12 @@ class TestFindPackageCommands:
         
         assert "pipx-command" in result
 
-    def test_find_package_commands_no_bin_dir(self):
+    def test_find_package_commands_no_bin_dir(self, tmp_path):
         """Test when bin directory doesn't exist."""
         mock_package = Mock(spec=InstalledPackage)
         mock_package.manager = PackageManager.UV_TOOL
-        mock_package.path = Path("/nonexistent")
+        nonexistent_path = tmp_path / "nonexistent"
+        mock_package.path = nonexistent_path
         mock_package.name = "test-package"
         
         result = find_package_commands(mock_package)

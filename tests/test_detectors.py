@@ -48,7 +48,8 @@ class TestDetectUvPackages:
         assert len(result) == 2
         assert result[0].name == "test-package"
         assert result[0].version == "1.0.0"
-        assert result[0].path == Path("/fake/path/to/venv")
+        # Path should be parsed from output, not hardcoded
+        assert str(result[0].path) == "/fake/path/to/venv"
         assert result[0].manager == PackageManager.UV_TOOL
         
         mock_run.assert_called_once_with(
