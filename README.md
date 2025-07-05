@@ -31,7 +31,7 @@ The tool will:
 1.  Detect Python packages installed via `uv tool` and `pipx` as well as
     some select commands
 2.  Analyze which ones support shell completions
-3.  Generate completion files in `~/.local/share/pycompgen/`
+3.  Generate completion files in `~/.cache/pycompgen/`
 4.  Create a source script to load all completions
 
 Add the source script to your shell config:
