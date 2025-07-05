@@ -7,11 +7,14 @@ from pycompgen.generators import (
     generate_completion,
     generate_click_completion,
     generate_argcomplete_completion,
+    generate_hardcoded_completion,
     generate_click_shell_completion,
     generate_argcomplete_bash_completion,
+    generate_hardcoded_shell_completion,
     _run_completion_command,
     get_completion_errors,
     _completion_errors,
+    HARDCODED_COMPLETION_GENERATORS,
 )
 from pycompgen.models import (
     CompletionPackage,
@@ -114,6 +117,23 @@ class TestGenerateCompletion:
 
         assert result == mock_completions
         mock_generate_argcomplete.assert_called_once_with(mock_package)
+
+    @patch("pycompgen.generators.generate_hardcoded_completion")
+    def test_generate_completion_hardcoded(self, mock_generate_hardcoded):
+        """Test generation for hardcoded package."""
+        mock_completions = [
+            Mock(spec=GeneratedCompletion),
+            Mock(spec=GeneratedCompletion),
+        ]
+        mock_generate_hardcoded.return_value = mock_completions
+
+        mock_package = Mock(spec=CompletionPackage)
+        mock_package.completion_type = CompletionType.HARDCODED
+
+        result = generate_completion(mock_package)
+
+        assert result == mock_completions
+        mock_generate_hardcoded.assert_called_once_with(mock_package)
 
     def test_generate_completion_unknown_type(self):
         """Test generation for unknown completion type."""
@@ -416,3 +436,159 @@ class TestGetCompletionErrors:
         result = get_completion_errors()
 
         assert result == []
+
+
+class TestGenerateHardcodedCompletion:
+    """Test hardcoded completion generation."""
+
+    @patch("pycompgen.generators.generate_hardcoded_shell_completion")
+    def test_generate_hardcoded_completion_success(self, mock_generate_shell):
+        """Test successful hardcoded completion generation."""
+        mock_generate_shell.side_effect = [
+            "bash completion content",  # bash
+            "zsh completion content",  # zsh
+        ]
+
+        mock_installed_package = Mock(spec=InstalledPackage)
+        mock_installed_package.name = "uv"
+
+        mock_package = Mock(spec=CompletionPackage)
+        mock_package.package = mock_installed_package
+        mock_package.commands = ["uv"]
+
+        result = generate_hardcoded_completion(mock_package)
+
+        assert isinstance(result, list)
+        assert len(result) == 2  # bash and zsh
+
+        # Check bash completion
+        bash_completion = next(c for c in result if c.shell == Shell.BASH)
+        assert bash_completion.package_name == "uv"
+        assert bash_completion.completion_type == CompletionType.HARDCODED
+        assert bash_completion.commands == ["uv"]
+        assert "bash completion content" in bash_completion.content
+
+        # Check zsh completion
+        zsh_completion = next(c for c in result if c.shell == Shell.ZSH)
+        assert zsh_completion.package_name == "uv"
+        assert "zsh completion content" in zsh_completion.content
+
+    @patch("pycompgen.generators.generate_hardcoded_shell_completion")
+    def test_generate_hardcoded_completion_partial_success(self, mock_generate_shell):
+        """Test hardcoded completion generation with partial success."""
+        mock_generate_shell.side_effect = [
+            "bash completion content",  # bash
+            None,  # zsh failed
+        ]
+
+        mock_installed_package = Mock(spec=InstalledPackage)
+        mock_installed_package.name = "uv"
+
+        mock_package = Mock(spec=CompletionPackage)
+        mock_package.package = mock_installed_package
+        mock_package.commands = ["uv"]
+
+        result = generate_hardcoded_completion(mock_package)
+
+        assert isinstance(result, list)
+        assert len(result) == 1  # Only bash succeeded
+        assert result[0].shell == Shell.BASH
+        assert "bash completion content" in result[0].content
+
+    @patch("pycompgen.generators.generate_hardcoded_shell_completion")
+    def test_generate_hardcoded_completion_no_completions(self, mock_generate_shell):
+        """Test hardcoded completion generation when no completions succeed."""
+        mock_generate_shell.return_value = None
+
+        mock_installed_package = Mock(spec=InstalledPackage)
+        mock_installed_package.name = "uv"
+
+        mock_package = Mock(spec=CompletionPackage)
+        mock_package.package = mock_installed_package
+        mock_package.commands = ["uv"]
+
+        result = generate_hardcoded_completion(mock_package)
+
+        assert isinstance(result, list)
+        assert len(result) == 0  # No completions succeeded
+
+
+class TestGenerateHardcodedShellCompletion:
+    """Test hardcoded shell completion generation."""
+
+    @patch("pycompgen.generators._run_completion_command")
+    def test_generate_hardcoded_shell_completion_uv_bash(self, mock_run):
+        """Test bash completion generation for uv."""
+        mock_run.return_value = "uv bash completion output"
+
+        result = generate_hardcoded_shell_completion("uv", "bash")
+
+        assert result == "uv bash completion output"
+        mock_run.assert_called_once_with(["uv", "generate-shell-completion", "bash"])
+
+    @patch("pycompgen.generators._run_completion_command")
+    def test_generate_hardcoded_shell_completion_uv_zsh(self, mock_run):
+        """Test zsh completion generation for uv."""
+        mock_run.return_value = "uv zsh completion output"
+
+        result = generate_hardcoded_shell_completion("uv", "zsh")
+
+        assert result == "uv zsh completion output"
+        mock_run.assert_called_once_with(["uv", "generate-shell-completion", "zsh"])
+
+    @patch("pycompgen.generators._run_completion_command")
+    def test_generate_hardcoded_shell_completion_uvx_bash(self, mock_run):
+        """Test bash completion generation for uvx."""
+        mock_run.return_value = "uvx bash completion output"
+
+        result = generate_hardcoded_shell_completion("uvx", "bash")
+
+        assert result == "uvx bash completion output"
+        mock_run.assert_called_once_with(["uvx", "--generate-shell-completion", "bash"])
+
+    @patch("pycompgen.generators._run_completion_command")
+    def test_generate_hardcoded_shell_completion_uvx_zsh(self, mock_run):
+        """Test zsh completion generation for uvx."""
+        mock_run.return_value = "uvx zsh completion output"
+
+        result = generate_hardcoded_shell_completion("uvx", "zsh")
+
+        assert result == "uvx zsh completion output"
+        mock_run.assert_called_once_with(["uvx", "--generate-shell-completion", "zsh"])
+
+    @patch("pycompgen.generators._run_completion_command")
+    def test_generate_hardcoded_shell_completion_unknown_command(self, mock_run):
+        """Test completion generation for unknown command."""
+        result = generate_hardcoded_shell_completion("unknown-command", "bash")
+
+        assert result is None
+        mock_run.assert_not_called()
+
+    @patch("pycompgen.generators._run_completion_command")
+    def test_generate_hardcoded_shell_completion_failure(self, mock_run):
+        """Test hardcoded completion generation failure."""
+        mock_run.return_value = None
+
+        result = generate_hardcoded_shell_completion("uv", "bash")
+
+        assert result is None
+
+
+class TestHardcodedCompletionGenerators:
+    """Test the hardcoded completion generators dictionary."""
+
+    def test_hardcoded_completion_generators_contains_uv(self):
+        """Test that uv is in the hardcoded generators."""
+        assert "uv" in HARDCODED_COMPLETION_GENERATORS
+        assert HARDCODED_COMPLETION_GENERATORS["uv"] == [
+            "uv",
+            "generate-shell-completion",
+        ]
+
+    def test_hardcoded_completion_generators_contains_uvx(self):
+        """Test that uvx is in the hardcoded generators."""
+        assert "uvx" in HARDCODED_COMPLETION_GENERATORS
+        assert HARDCODED_COMPLETION_GENERATORS["uvx"] == [
+            "uvx",
+            "--generate-shell-completion",
+        ]

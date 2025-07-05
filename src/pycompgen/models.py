@@ -12,6 +12,7 @@ class PackageManager(Enum):
 class CompletionType(Enum):
     CLICK = "click"
     ARGCOMPLETE = "argcomplete"
+    HARDCODED = "hardcoded"
 
 
 class Shell(Enum):
