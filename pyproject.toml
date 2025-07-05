@@ -1,0 +1,17 @@
+[project]
+name = "compgen"
+version = "0.1.0"
+description = "Generate shell completions automatically"
+readme = "README.md"
+authors = [
+    { name = "Adrian Vollmer", email = "av3@mailbox.org" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+compgen = "compgen:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
