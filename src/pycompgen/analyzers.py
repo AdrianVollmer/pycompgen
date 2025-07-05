@@ -38,6 +38,7 @@ def detect_completion_type(package: InstalledPackage) -> Optional[CompletionType
     """Detect if package uses click or argcomplete."""
     # Look for click or argcomplete in the package's environment
     python_path = get_python_path(package)
+
     if not python_path:
         return None
 

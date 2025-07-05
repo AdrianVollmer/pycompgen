@@ -1,6 +1,6 @@
 import os
 import subprocess
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Literal
 
 from .models import CompletionPackage, GeneratedCompletion, CompletionType
 from .logger import get_logger
@@ -50,8 +50,8 @@ def generate_click_completion(
 
     for command in package.commands:
         # Generate for both bash and zsh
-        bash_completion = generate_click_bash_completion(command)
-        zsh_completion = generate_click_zsh_completion(command)
+        bash_completion = generate_click_shell_completion(command, shell="bash")
+        zsh_completion = generate_click_shell_completion(command, shell="zsh")
 
         if bash_completion or zsh_completion:
             command_completion = f"# Completion for {command}\n"
@@ -101,7 +101,9 @@ def generate_argcomplete_completion(
 
 
 def _run_completion_command(
-    command: List[str], env: Optional[Dict[str, str]] = None, timeout: int = 10
+    command: List[str],
+    env: Optional[Dict[str, str]] = None,
+    timeout: int = 3,
 ) -> Optional[str]:
     """Run a completion command and return the output or None if failed."""
     try:
@@ -132,17 +134,16 @@ def _run_completion_command(
         return None
 
 
-def generate_click_bash_completion(command: str) -> Optional[str]:
-    """Generate bash completion script for a click command."""
+def generate_click_shell_completion(
+    command: str, shell: Literal["bash", "zsh"]
+) -> Optional[str]:
+    """Generate shell completion script for a click command."""
     env_var = f"_{command.upper().replace('-', '_')}_COMPLETE"
-    env = {**os.environ, env_var: "bash_source"}
-    return _run_completion_command([command], env=env)
 
-
-def generate_click_zsh_completion(command: str) -> Optional[str]:
-    """Generate zsh completion script for a click command."""
-    env_var = f"_{command.upper().replace('-', '_')}_COMPLETE"
-    env = {**os.environ, env_var: "zsh_source"}
+    assert shell in ["bash", "zsh"]
+    shell_source = f"{shell}_source"
+    env = {**os.environ, env_var: shell_source}
+    logger.debug(f"Generating completions: {env_var}={shell_source} {command}")
     return _run_completion_command([command], env=env)
 
 
