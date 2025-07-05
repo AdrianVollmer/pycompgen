@@ -295,7 +295,7 @@ class TestEndToEndWorkflow:
         captured = capsys.readouterr()
         assert "Found 1 packages" in captured.err  # Log messages go to stderr
         assert "Found 1 packages with completion support" in captured.err
-        assert "Generated 1 completions" in captured.err
+        assert "Generated 2 completions" in captured.err  # Now generates bash + zsh
 
         # Check that completion file was created
         completion_files = list(temp_dir.glob("*.sh"))
@@ -344,7 +344,7 @@ class TestEndToEndWorkflow:
         captured = capsys.readouterr()
         assert "Found 1 packages" in captured.err  # Log messages go to stderr
         assert "Found 1 packages with completion support" in captured.err
-        assert "Generated 1 completions" in captured.err
+        assert "Generated 1 completions" in captured.err  # Argcomplete only generates bash
 
 
 class TestErrorScenarios:

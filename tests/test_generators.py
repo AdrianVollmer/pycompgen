@@ -139,12 +139,20 @@ class TestGenerateClickCompletion:
 
         result = generate_click_completion(mock_package)
 
-        assert result is not None
-        assert result.package_name == "test-package"
-        assert result.completion_type == CompletionType.CLICK
-        assert result.commands == ["test-command"]
-        assert "bash completion content" in result.content
-        assert "zsh completion content" in result.content
+        assert isinstance(result, list)
+        assert len(result) == 2  # bash and zsh
+        
+        # Check bash completion
+        bash_completion = next(c for c in result if c.shell == Shell.BASH)
+        assert bash_completion.package_name == "test-package"
+        assert bash_completion.completion_type == CompletionType.CLICK
+        assert bash_completion.commands == ["test-command"]
+        assert "bash completion content" in bash_completion.content
+        
+        # Check zsh completion
+        zsh_completion = next(c for c in result if c.shell == Shell.ZSH)
+        assert zsh_completion.package_name == "test-package"
+        assert "zsh completion content" in zsh_completion.content
 
     @patch("pycompgen.generators.generate_click_shell_completion")
     def test_generate_click_completion_partial_success(self, mock_generate_shell):
@@ -163,9 +171,10 @@ class TestGenerateClickCompletion:
 
         result = generate_click_completion(mock_package)
 
-        assert result is not None
-        assert "bash completion content" in result.content
-        assert "zsh completion content" not in result.content
+        assert isinstance(result, list)
+        assert len(result) == 1  # Only bash succeeded
+        assert result[0].shell == Shell.BASH
+        assert "bash completion content" in result[0].content
 
     @patch("pycompgen.generators.generate_click_shell_completion")
     def test_generate_click_completion_no_completions(self, mock_generate_shell):
@@ -181,7 +190,8 @@ class TestGenerateClickCompletion:
 
         result = generate_click_completion(mock_package)
 
-        assert result is None
+        assert isinstance(result, list)
+        assert len(result) == 0  # No completions succeeded
 
 
 class TestGenerateArgcompleteCompletion:
@@ -201,11 +211,13 @@ class TestGenerateArgcompleteCompletion:
 
         result = generate_argcomplete_completion(mock_package)
 
-        assert result is not None
-        assert result.package_name == "test-package"
-        assert result.completion_type == CompletionType.ARGCOMPLETE
-        assert result.commands == ["test-command"]
-        assert "bash completion content" in result.content
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].package_name == "test-package"
+        assert result[0].completion_type == CompletionType.ARGCOMPLETE
+        assert result[0].commands == ["test-command"]
+        assert result[0].shell == Shell.BASH
+        assert "bash completion content" in result[0].content
 
     @patch("pycompgen.generators.generate_argcomplete_bash_completion")
     def test_generate_argcomplete_completion_failure(self, mock_generate_bash):
@@ -221,7 +233,8 @@ class TestGenerateArgcompleteCompletion:
 
         result = generate_argcomplete_completion(mock_package)
 
-        assert result is None
+        assert isinstance(result, list)
+        assert len(result) == 0  # No completions succeeded
 
 
 class TestRunCompletionCommand:
