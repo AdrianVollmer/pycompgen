@@ -5,7 +5,7 @@ from pathlib import Path
 from .detectors import detect_packages
 from .analyzers import analyze_packages
 from .generators import generate_completions
-from .cache import save_completions, get_cache_dir, save_source_script
+from .cache import save_completions, get_cache_dir, save_source_script, get_source_path
 from .logger import setup_logging
 
 
@@ -28,11 +28,27 @@ def main() -> None:
         action="store_true",
         help="Enable verbose output",
     )
+    parser.add_argument(
+        "--source",
+        action="store_true",
+        help="Only write the source file contents to stdout",
+    )
 
     args = parser.parse_args()
 
     # Set up logging
     logger = setup_logging(args.verbose)
+
+    cache_dir = args.cache_dir or get_cache_dir()
+    source_script = get_source_path(cache_dir)
+
+    if args.source:
+        try:
+            # Print the source file contents and exit
+            print(open(source_script, "r").read())
+            sys.exit(0)
+        except (FileNotFoundError, OSError):
+            pass
 
     try:
         # Detect installed packages
@@ -53,7 +69,6 @@ def main() -> None:
         logger.info(f"Generated {len(completions)} completions")
 
         # Save to cache
-        cache_dir = args.cache_dir or get_cache_dir()
         save_completions(completions, cache_dir, force=args.force)
 
         # Generate source script
@@ -61,12 +76,6 @@ def main() -> None:
 
         logger.info(f"Completions saved to {cache_dir}")
         logger.info(f"Source script: {source_script}")
-
-        # Only print to console if verbose
-        if args.verbose:
-            print(f"Completions saved to {cache_dir}")
-            print(f"Source script: {source_script}")
-            print(f"Add this to your shell config: source {source_script}")
 
     except Exception as e:
         logger.error(f"Error: {e}", exc_info=True)

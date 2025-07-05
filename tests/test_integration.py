@@ -4,6 +4,7 @@ import subprocess
 import json
 from pathlib import Path
 import tempfile
+import logging
 
 from pycompgen import main
 
@@ -87,24 +88,20 @@ class TestMainWorkflow:
     @patch("pycompgen.generate_completions")
     @patch("pycompgen.analyze_packages")
     @patch("pycompgen.detect_packages")
-    @patch("pycompgen.setup_logging")
     @patch("pycompgen.get_cache_dir")
     def test_main_workflow_verbose_mode(
         self,
         mock_get_cache_dir,
-        mock_setup_logging,
         mock_detect,
         mock_analyze,
         mock_generate,
         mock_save_completions,
         mock_save_source_script,
         temp_dir,
-        capsys,
+        caplog,
     ):
         """Test verbose mode output."""
         # Setup mocks
-        mock_logger = Mock()
-        mock_setup_logging.return_value = mock_logger
         mock_get_cache_dir.return_value = temp_dir
         mock_detect.return_value = []
         mock_analyze.return_value = []
@@ -115,13 +112,11 @@ class TestMainWorkflow:
 
         # Run with verbose flag
         with patch("sys.argv", ["pycompgen", "--verbose"]):
-            main()
+            with caplog.at_level(logging.INFO, logger="pycompgen"):
+                main()
 
         # Check console output
-        captured = capsys.readouterr()
-        assert "Completions saved to" in captured.out
-        assert "Source script:" in captured.out
-        assert "Add this to your shell config:" in captured.out
+        assert "Detecting installed packages" in caplog.record_tuples[0][2]
 
     @patch("pycompgen.save_source_script")
     @patch("pycompgen.save_completions")

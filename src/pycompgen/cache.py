@@ -94,13 +94,18 @@ def generate_source_script(cache_dir: Path) -> str:
     return "\n".join(script_lines)
 
 
+def get_source_path(cache_dir: Path) -> Path:
+    script_path = cache_dir / "completions.sh"
+    return script_path
+
+
 def save_source_script(cache_dir: Path) -> Path:
     """Save the source script to cache directory."""
     logger = get_logger()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     script_content = generate_source_script(cache_dir)
-    script_path = cache_dir / "completions.sh"
+    script_path = get_source_path(cache_dir)
 
     try:
         script_path.write_text(script_content)
