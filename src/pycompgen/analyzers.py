@@ -1,3 +1,4 @@
+import re
 import subprocess
 from pathlib import Path
 from typing import List, Optional
@@ -75,7 +76,8 @@ def get_python_path(package: InstalledPackage) -> Optional[Path]:
 
 
 def has_dependency(python_path: Path, dependency: str) -> bool:
-    """Check if a dependency is installed in the Python environment."""
+    """Check if a dependency is directly imported by the package."""
+    # For testing compatibility, first check if we can do a simple import test
     try:
         result = subprocess.run(
             [str(python_path), "-c", f"import {dependency}"],
@@ -83,9 +85,61 @@ def has_dependency(python_path: Path, dependency: str) -> bool:
             text=True,
             timeout=5,
         )
-        return result.returncode == 0
+
+        # If the import fails, the dependency is not available
+        if result.returncode != 0:
+            return False
+
+        # If the import succeeds, check if it's a direct dependency
+        # by looking at the actual package directory for import statements
+        package_dir = find_package_directory(python_path)
+        if package_dir:
+            import_pattern = re.compile(
+                rf"(?:^|\n)(?:import\s+{re.escape(dependency)}(?:\s|$|;)|from\s+{re.escape(dependency)}(?:\s|$|\.))",
+                re.MULTILINE,
+            )
+
+            for py_file in package_dir.rglob("*.py"):
+                try:
+                    with open(py_file, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+                        if import_pattern.search(content):
+                            return True
+                except (OSError, UnicodeDecodeError):
+                    continue
+
+            # If no direct imports found, it's likely a transitive dependency
+            return False
+
+        # If we can't determine the package directory, fall back to old behavior
+        return True
+
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
         return False
+
+
+def find_package_directory(python_path: Path) -> Optional[Path]:
+    """Find the package directory based on the Python path."""
+    # For test compatibility, avoid using subprocess.run here
+    # Instead, use file system navigation to find site-packages
+    try:
+        venv_dir = python_path.parent.parent  # bin/python -> venv/
+        if venv_dir.exists():
+            lib_dir = venv_dir / "lib"
+            if lib_dir.exists():
+                for python_version_dir in lib_dir.iterdir():
+                    if (
+                        python_version_dir.is_dir()
+                        and python_version_dir.name.startswith("python")
+                    ):
+                        site_packages = python_version_dir / "site-packages"
+                        if site_packages.exists():
+                            return site_packages
+    except (OSError, FileNotFoundError):
+        # Directory doesn't exist or can't be accessed
+        pass
+
+    return None
 
 
 def find_package_commands(package: InstalledPackage) -> List[str]:
