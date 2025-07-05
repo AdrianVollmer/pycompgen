@@ -16,6 +16,12 @@ def detect_packages() -> List[InstalledPackage]:
 
 def detect_uv_packages() -> List[InstalledPackage]:
     """Detect packages installed via uv tool."""
+
+    # Sample format:
+    # $ uv tool list --show-paths
+    #  bagels v0.3.6 (/home/user/.local/share/uv/tools/bagels)
+    #  - bagels (/home/user/.local/bin/bagels)
+
     try:
         result = subprocess.run(
             ["uv", "tool", "list", "--show-paths"],
@@ -30,6 +36,27 @@ def detect_uv_packages() -> List[InstalledPackage]:
 
 def detect_pipx_packages() -> List[InstalledPackage]:
     """Detect packages installed via pipx."""
+
+    # Sample format:
+    #  {
+    #      "pipx_spec_version": "0.1",
+    #      "venvs": {
+    #          "black": {
+    #              "metadata": {
+    #                  "injected_packages": {},
+    #                  "main_package": {
+    #                      "app_paths": [
+    #                          {
+    #                              "__Path__": "/home/user/.local/pipx/venvs/black/bin/black",
+    #                              "__type__": "Path"
+    #                          },
+    #                          {
+    #                              "__Path__": "/home/user/.local/pipx/venvs/black/bin/blackd",
+    #                              "__type__": "Path"
+    #                          }
+    #                      ],
+    # ...
+
     try:
         result = subprocess.run(
             ["pipx", "list", "--json"],
@@ -47,33 +74,63 @@ def parse_uv_output(output: str) -> List[InstalledPackage]:
 
     Expected format:
     package-name v1.0.0 (path: /path/to/package)
+    - command1 (/path/to/bin/command1)
+    - command2 (/path/to/bin/command2)
     """
     packages = []
+    current_package = None
+    commands = []
+
     for line in output.strip().split("\n"):
-        if not line.strip():
+        line = line.strip()
+        if not line:
             continue
 
-        # Parse format: "package-name v1.0.0 (path: /path/to/package)"
-        parts = line.strip().split(" ", 2)
-        if len(parts) < 2:
-            continue
-
-        name = parts[0]
-        version = parts[1].lstrip("v")
-
-        # Extract path from parentheses
-        if len(parts) > 2 and parts[2].startswith("(path: ") and parts[2].endswith(")"):
-            path_str = parts[2][7:-1]  # Remove "(path: " and ")"
-            path = Path(path_str)
+        if line.startswith("- "):
+            # This is a command line
+            if current_package is not None:
+                # Extract command name from "- command (/path/to/bin/command)"
+                command_part = line[2:]  # Remove "- "
+                if " (" in command_part:
+                    command_name = command_part.split(" (")[0]
+                    commands.append(command_name)
         else:
-            # If no path info, skip this package
-            continue
+            # This is a package line - save previous package if exists
+            if current_package is not None:
+                current_package.commands = commands
+                packages.append(current_package)
+                commands = []
 
-        packages.append(
-            InstalledPackage(
+            # Parse format: "package-name v1.0.0 (path: /path/to/package)"
+            parts = line.split(" ", 2)
+            if len(parts) < 2:
+                current_package = None
+                continue
+
+            name = parts[0]
+            version = parts[1].lstrip("v")
+
+            # Extract path from parentheses
+            if (
+                len(parts) > 2
+                and parts[2].startswith("(path: ")
+                and parts[2].endswith(")")
+            ):
+                path_str = parts[2][7:-1]  # Remove "(path: " and ")"
+                path = Path(path_str)
+            else:
+                # If no path info, skip this package
+                current_package = None
+                continue
+
+            current_package = InstalledPackage(
                 name=name, path=path, manager=PackageManager.UV_TOOL, version=version
             )
-        )
+
+    # Don't forget the last package
+    if current_package is not None:
+        current_package.commands = commands
+        packages.append(current_package)
 
     return packages
 
@@ -93,9 +150,11 @@ def parse_pipx_output(output: str) -> List[InstalledPackage]:
                 # Fallback to constructing path from standard pipx location
                 venv_path = Path.home() / ".local" / "pipx" / "venvs" / name
 
-            version = (
-                info.get("metadata", {}).get("main_package", {}).get("package_version")
-            )
+            main_package = info.get("metadata", {}).get("main_package", {})
+            version = main_package.get("package_version")
+
+            # Extract commands from the "apps" field
+            commands = main_package.get("apps", [])
 
             packages.append(
                 InstalledPackage(
@@ -103,6 +162,7 @@ def parse_pipx_output(output: str) -> List[InstalledPackage]:
                     path=venv_path,
                     manager=PackageManager.PIPX,
                     version=version,
+                    commands=commands,
                 )
             )
 

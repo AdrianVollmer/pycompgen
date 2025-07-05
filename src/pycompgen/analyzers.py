@@ -83,32 +83,12 @@ def has_dependency(python_path: Path, dependency: str) -> bool:
 
 def find_package_commands(package: InstalledPackage) -> List[str]:
     """Find the main command(s) for a package."""
-    commands = []
-
-    # For uv tool, check bin directory
-    if package.manager == PackageManager.UV_TOOL:
-        bin_dir = package.path / "bin"
-        if bin_dir.exists():
-            for item in bin_dir.iterdir():
-                if item.is_file() and item.stat().st_mode & 0o111:  # executable
-                    if item.name not in ("python", "python3", "pip", "pip3", "wheel"):
-                        commands.append(item.name)
-
-    # For pipx, the command is typically the package name itself
-    elif package.manager == PackageManager.PIPX:
-        # Check if there's a script with the package name
-        bin_dir = package.path / "bin"
-        if bin_dir.exists():
-            for item in bin_dir.iterdir():
-                if item.is_file() and item.stat().st_mode & 0o111:  # executable
-                    if item.name not in ("python", "python3", "pip", "pip3", "wheel"):
-                        commands.append(item.name)
-
-    # If no commands found, try the package name itself
-    if not commands:
-        commands.append(package.name)
-
-    return commands
+    # Use commands from package manager output if available
+    if package.commands:
+        return package.commands
+    
+    # Fallback to package name if no commands found
+    return [package.name]
 
 
 def verify_completion_support(package: CompletionPackage) -> bool:

@@ -20,6 +20,7 @@ class InstalledPackage:
     path: Path
     manager: PackageManager
     version: Optional[str] = None
+    commands: Optional[List[str]] = None
 
 
 @dataclass

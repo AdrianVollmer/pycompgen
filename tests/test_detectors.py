@@ -118,7 +118,10 @@ class TestParseUvOutput:
     def test_parse_uv_output_valid_format(self):
         """Test parsing valid uv tool output."""
         output = """test-package v1.0.0 (path: /fake/path/to/venv)
+- test-cmd (/fake/path/to/venv/bin/test-cmd)
 another-package v2.1.0 (path: /another/path)
+- another-cmd (/another/path/bin/another-cmd)
+- second-cmd (/another/path/bin/second-cmd)
 """
 
         result = parse_uv_output(output)
@@ -127,8 +130,10 @@ another-package v2.1.0 (path: /another/path)
         assert result[0].name == "test-package"
         assert result[0].version == "1.0.0"
         assert result[0].path == Path("/fake/path/to/venv")
+        assert result[0].commands == ["test-cmd"]
         assert result[1].name == "another-package"
         assert result[1].version == "2.1.0"
+        assert result[1].commands == ["another-cmd", "second-cmd"]
 
     def test_parse_uv_output_no_path(self):
         """Test parsing uv output without path information."""
@@ -137,6 +142,16 @@ another-package v2.1.0 (path: /another/path)
         result = parse_uv_output(output)
 
         assert result == []
+        
+    def test_parse_uv_output_no_commands(self):
+        """Test parsing uv output without command lines."""
+        output = "test-package v1.0.0 (path: /fake/path/to/venv)\n"
+
+        result = parse_uv_output(output)
+
+        assert len(result) == 1
+        assert result[0].name == "test-package"
+        assert result[0].commands == []
 
     def test_parse_uv_output_empty(self):
         """Test parsing empty uv output."""
@@ -162,11 +177,11 @@ class TestParsePipxOutput:
             "venvs": {
                 "test-package": {
                     "pyvenv_cfg": {"home": "/fake/venv/bin"},
-                    "metadata": {"main_package": {"package_version": "1.0.0"}},
+                    "metadata": {"main_package": {"package_version": "1.0.0", "apps": ["test-cmd"]}},
                 },
                 "another-package": {
                     "pyvenv_cfg": {},
-                    "metadata": {"main_package": {"package_version": "2.0.0"}},
+                    "metadata": {"main_package": {"package_version": "2.0.0", "apps": ["another-cmd", "second-cmd"]}},
                 },
             }
         }
@@ -177,10 +192,12 @@ class TestParsePipxOutput:
         assert result[0].name == "test-package"
         assert result[0].version == "1.0.0"
         assert result[0].path == Path("/fake/venv")
+        assert result[0].commands == ["test-cmd"]
 
         # Second package should use fallback path
         assert result[1].name == "another-package"
         assert result[1].version == "2.0.0"
+        assert result[1].commands == ["another-cmd", "second-cmd"]
 
     def test_parse_pipx_output_invalid_json(self):
         """Test parsing invalid JSON."""
@@ -203,6 +220,23 @@ class TestParsePipxOutput:
         result = parse_pipx_output(json.dumps(pipx_data))
 
         assert result == []
+        
+    def test_parse_pipx_output_no_apps(self):
+        """Test parsing pipx output without apps field."""
+        pipx_data = {
+            "venvs": {
+                "test-package": {
+                    "pyvenv_cfg": {"home": "/fake/venv/bin"},
+                    "metadata": {"main_package": {"package_version": "1.0.0"}},
+                }
+            }
+        }
+
+        result = parse_pipx_output(json.dumps(pipx_data))
+
+        assert len(result) == 1
+        assert result[0].name == "test-package"
+        assert result[0].commands == []
 
     @patch("pathlib.Path.home")
     def test_parse_pipx_output_fallback_path(self, mock_home):
