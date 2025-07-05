@@ -83,15 +83,15 @@ def clean_cache(cache_dir: Path, keep_packages: List[str]) -> None:
 def generate_source_script(cache_dir: Path) -> str:
     """Generate a script that sources appropriate completion files based on shell."""
     completion_files = get_completion_files(cache_dir)
-    
+
     # Group files by shell
     bash_files = []
     zsh_files = []
-    
+
     for filepath in completion_files:
-        if filepath.name.endswith('.bash.sh'):
+        if filepath.name.endswith(".bash.sh"):
             bash_files.append(filepath)
-        elif filepath.name.endswith('.zsh.sh'):
+        elif filepath.name.endswith(".zsh.sh"):
             zsh_files.append(filepath)
 
     script_lines = ["#!/bin/bash"]
@@ -101,22 +101,22 @@ def generate_source_script(cache_dir: Path) -> str:
     script_lines.append("# Detect current shell")
     script_lines.append('current_shell="$(basename "${SHELL:-bash}")"')
     script_lines.append("")
-    
+
     if bash_files or zsh_files:
-        script_lines.append("case \"$current_shell\" in")
-        
+        script_lines.append('case "$current_shell" in')
+
         if zsh_files:
             script_lines.append("    zsh)")
             for filepath in sorted(zsh_files):
                 script_lines.append(f"        source {filepath}")
             script_lines.append("        ;;")
-        
+
         if bash_files:
             script_lines.append("    bash|*)")
             for filepath in sorted(bash_files):
                 script_lines.append(f"        source {filepath}")
             script_lines.append("        ;;")
-        
+
         script_lines.append("esac")
         script_lines.append("")
 

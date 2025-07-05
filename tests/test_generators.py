@@ -29,7 +29,10 @@ class TestGenerateCompletions:
     def test_generate_completions_success(self, mock_generate):
         """Test successful completion generation."""
         mock_packages = [Mock(), Mock()]
-        mock_completions1 = [Mock(spec=GeneratedCompletion), Mock(spec=GeneratedCompletion)]
+        mock_completions1 = [
+            Mock(spec=GeneratedCompletion),
+            Mock(spec=GeneratedCompletion),
+        ]
         mock_completions2 = [Mock(spec=GeneratedCompletion)]
         mock_generate.side_effect = [mock_completions1, mock_completions2]
 
@@ -84,7 +87,10 @@ class TestGenerateCompletion:
     @patch("pycompgen.generators.generate_click_completion")
     def test_generate_completion_click(self, mock_generate_click):
         """Test generation for click package."""
-        mock_completions = [Mock(spec=GeneratedCompletion), Mock(spec=GeneratedCompletion)]
+        mock_completions = [
+            Mock(spec=GeneratedCompletion),
+            Mock(spec=GeneratedCompletion),
+        ]
         mock_generate_click.return_value = mock_completions
 
         mock_package = Mock(spec=CompletionPackage)
@@ -141,14 +147,14 @@ class TestGenerateClickCompletion:
 
         assert isinstance(result, list)
         assert len(result) == 2  # bash and zsh
-        
+
         # Check bash completion
         bash_completion = next(c for c in result if c.shell == Shell.BASH)
         assert bash_completion.package_name == "test-package"
         assert bash_completion.completion_type == CompletionType.CLICK
         assert bash_completion.commands == ["test-command"]
         assert "bash completion content" in bash_completion.content
-        
+
         # Check zsh completion
         zsh_completion = next(c for c in result if c.shell == Shell.ZSH)
         assert zsh_completion.package_name == "test-package"

@@ -344,7 +344,9 @@ class TestEndToEndWorkflow:
         captured = capsys.readouterr()
         assert "Found 1 packages" in captured.err  # Log messages go to stderr
         assert "Found 1 packages with completion support" in captured.err
-        assert "Generated 1 completions" in captured.err  # Argcomplete only generates bash
+        assert (
+            "Generated 1 completions" in captured.err
+        )  # Argcomplete only generates bash
 
 
 class TestErrorScenarios:

@@ -34,7 +34,7 @@ def generate_completions(
 def generate_completion(package: CompletionPackage) -> List[GeneratedCompletion]:
     """Generate completions for a single package (multiple shells)."""
     completions = []
-    
+
     if package.completion_type == CompletionType.CLICK:
         completions.extend(generate_click_completion(package))
     elif package.completion_type == CompletionType.ARGCOMPLETE:
@@ -48,40 +48,44 @@ def generate_click_completion(
 ) -> List[GeneratedCompletion]:
     """Generate click completion scripts for multiple shells."""
     completions = []
-    
+
     # Generate bash completions
     bash_parts = []
     for command in package.commands:
         bash_completion = generate_click_shell_completion(command, shell="bash")
         if bash_completion:
             bash_parts.append(f"# Completion for {command}\n{bash_completion}")
-    
+
     if bash_parts:
         bash_content = "\n".join(bash_parts)
-        completions.append(GeneratedCompletion(
-            package_name=package.package.name,
-            completion_type=CompletionType.CLICK,
-            content=bash_content,
-            commands=package.commands,
-            shell=Shell.BASH,
-        ))
-    
+        completions.append(
+            GeneratedCompletion(
+                package_name=package.package.name,
+                completion_type=CompletionType.CLICK,
+                content=bash_content,
+                commands=package.commands,
+                shell=Shell.BASH,
+            )
+        )
+
     # Generate zsh completions
     zsh_parts = []
     for command in package.commands:
         zsh_completion = generate_click_shell_completion(command, shell="zsh")
         if zsh_completion:
             zsh_parts.append(f"# Completion for {command}\n{zsh_completion}")
-    
+
     if zsh_parts:
         zsh_content = "\n".join(zsh_parts)
-        completions.append(GeneratedCompletion(
-            package_name=package.package.name,
-            completion_type=CompletionType.CLICK,
-            content=zsh_content,
-            commands=package.commands,
-            shell=Shell.ZSH,
-        ))
+        completions.append(
+            GeneratedCompletion(
+                package_name=package.package.name,
+                completion_type=CompletionType.CLICK,
+                content=zsh_content,
+                commands=package.commands,
+                shell=Shell.ZSH,
+            )
+        )
 
     return completions
 
@@ -103,13 +107,15 @@ def generate_argcomplete_completion(
     # Combine all completions
     content = "\n".join(completion_parts)
 
-    return [GeneratedCompletion(
-        package_name=package.package.name,
-        completion_type=CompletionType.ARGCOMPLETE,
-        content=content,
-        commands=package.commands,
-        shell=Shell.BASH,
-    )]
+    return [
+        GeneratedCompletion(
+            package_name=package.package.name,
+            completion_type=CompletionType.ARGCOMPLETE,
+            content=content,
+            commands=package.commands,
+            shell=Shell.BASH,
+        )
+    ]
 
 
 def _run_completion_command(

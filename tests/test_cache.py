@@ -266,7 +266,11 @@ class TestGenerateSourceScript:
         result = generate_source_script(temp_dir)
 
         lines = result.split("\n")
-        bash_source_lines = [line.strip() for line in lines if line.strip().startswith("source") and "bash" in line]
+        bash_source_lines = [
+            line.strip()
+            for line in lines
+            if line.strip().startswith("source") and "bash" in line
+        ]
 
         # Should be sorted alphabetically
         assert len(bash_source_lines) == 3
