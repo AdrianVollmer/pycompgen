@@ -101,7 +101,7 @@ def generate_click_completion(
 def generate_argcomplete_completion(
     package: CompletionPackage,
 ) -> List[GeneratedCompletion]:
-    """Generate argcomplete completion script (bash only)."""
+    """Generate argcomplete completion scripts for bash and zsh (content is identical)."""
     completion_parts = []
 
     for command in package.commands:
@@ -115,6 +115,7 @@ def generate_argcomplete_completion(
     # Combine all completions
     content = "\n".join(completion_parts)
 
+    # Generate for both bash and zsh since argcomplete works with both
     return [
         GeneratedCompletion(
             package_name=package.package.name,
@@ -122,7 +123,14 @@ def generate_argcomplete_completion(
             content=content,
             commands=package.commands,
             shell=Shell.BASH,
-        )
+        ),
+        GeneratedCompletion(
+            package_name=package.package.name,
+            completion_type=CompletionType.ARGCOMPLETE,
+            content=content,
+            commands=package.commands,
+            shell=Shell.ZSH,
+        ),
     ]
 
 

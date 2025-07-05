@@ -238,12 +238,23 @@ class TestGenerateArgcompleteCompletion:
         result = generate_argcomplete_completion(mock_package)
 
         assert isinstance(result, list)
-        assert len(result) == 1
-        assert result[0].package_name == "test-package"
-        assert result[0].completion_type == CompletionType.ARGCOMPLETE
-        assert result[0].commands == ["test-command"]
-        assert result[0].shell == Shell.BASH
-        assert "bash completion content" in result[0].content
+        assert len(result) == 2  # Now generates for both bash and zsh
+
+        # Check bash completion
+        bash_completion = next(c for c in result if c.shell == Shell.BASH)
+        assert bash_completion.package_name == "test-package"
+        assert bash_completion.completion_type == CompletionType.ARGCOMPLETE
+        assert bash_completion.commands == ["test-command"]
+        assert "bash completion content" in bash_completion.content
+
+        # Check zsh completion
+        zsh_completion = next(c for c in result if c.shell == Shell.ZSH)
+        assert zsh_completion.package_name == "test-package"
+        assert zsh_completion.completion_type == CompletionType.ARGCOMPLETE
+        assert zsh_completion.commands == ["test-command"]
+        assert (
+            "bash completion content" in zsh_completion.content
+        )  # Same content as bash
 
     @patch("pycompgen.generators.generate_argcomplete_bash_completion")
     def test_generate_argcomplete_completion_failure(self, mock_generate_bash):

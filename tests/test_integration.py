@@ -347,8 +347,8 @@ class TestEndToEndWorkflow:
         assert "Found 1 packages" in captured.err  # Log messages go to stderr
         assert "Found 1 packages with completion support" in captured.err
         assert (
-            "Generated 1 completions" in captured.err
-        )  # Argcomplete only generates bash
+            "Generated 2 completions" in captured.err
+        )  # Argcomplete now generates both bash and zsh
 
 
 class TestErrorScenarios:
