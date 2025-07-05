@@ -1,7 +1,14 @@
+import os
 import subprocess
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from .models import CompletionPackage, GeneratedCompletion, CompletionType
+from .logger import get_logger
+
+# Global error collector for summarizing errors at the end
+_completion_errors: List[str] = []
+
+logger = get_logger()
 
 
 def generate_completions(
@@ -9,11 +16,20 @@ def generate_completions(
 ) -> List[GeneratedCompletion]:
     """Generate shell completions for all packages."""
     completions = []
+    _completion_errors.clear()  # Reset error list
 
     for package in packages:
         completion = generate_completion(package)
         if completion:
             completions.append(completion)
+
+    # Log summary of errors if any occurred
+    if _completion_errors:
+        logger.warning(
+            f"Completion generation failed for {len(_completion_errors)} commands:"
+        )
+        for error in _completion_errors:
+            logger.warning(f"  - {error}")
 
     return completions
 
@@ -86,87 +102,57 @@ def generate_argcomplete_completion(
     )
 
 
-def generate_click_bash_completion(command: str) -> Optional[str]:
-    """Generate bash completion script for a click command."""
+def _run_completion_command(
+    command: List[str], env: Optional[Dict[str, str]] = None, timeout: int = 10
+) -> Optional[str]:
+    """Run a completion command and return the output or None if failed."""
     try:
-        # Use click's built-in completion generation
-        env_var = f"_{command.upper().replace('-', '_')}_COMPLETE"
-
         result = subprocess.run(
-            [command],
-            env={**dict(subprocess.os.environ), env_var: "bash_source"},
+            command,
+            env=env or os.environ,
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=timeout,
+            check=True,
         )
 
-        if result.returncode == 0 and result.stdout.strip():
+        if result.stdout.strip():
             return result.stdout.strip()
         else:
-            # Generate eval statement as fallback
-            return f'eval "$({env_var}=bash_source {command})"'
+            return None
 
     except (
         subprocess.TimeoutExpired,
         subprocess.CalledProcessError,
         FileNotFoundError,
-    ):
-        # Generate eval statement as fallback
-        env_var = f"_{command.upper().replace('-', '_')}_COMPLETE"
-        return f'eval "$({env_var}=bash_source {command})"'
+    ) as e:
+        # Log the error and add to error summary
+        command_str = " ".join(command)
+        error_msg = f"Command '{command_str}' failed: {type(e).__name__}: {e}"
+        logger.debug(error_msg)
+        _completion_errors.append(command_str)
+        return None
+
+
+def generate_click_bash_completion(command: str) -> Optional[str]:
+    """Generate bash completion script for a click command."""
+    env_var = f"_{command.upper().replace('-', '_')}_COMPLETE"
+    env = {**os.environ, env_var: "bash_source"}
+    return _run_completion_command([command], env=env)
 
 
 def generate_click_zsh_completion(command: str) -> Optional[str]:
     """Generate zsh completion script for a click command."""
-    try:
-        # Use click's built-in completion generation for zsh
-        env_var = f"_{command.upper().replace('-', '_')}_COMPLETE"
-
-        result = subprocess.run(
-            [command],
-            env={**dict(subprocess.os.environ), env_var: "zsh_source"},
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-        else:
-            # Generate eval statement as fallback
-            return f'eval "$({env_var}=zsh_source {command})"'
-
-    except (
-        subprocess.TimeoutExpired,
-        subprocess.CalledProcessError,
-        FileNotFoundError,
-    ):
-        # Generate eval statement as fallback
-        env_var = f"_{command.upper().replace('-', '_')}_COMPLETE"
-        return f'eval "$({env_var}=zsh_source {command})"'
+    env_var = f"_{command.upper().replace('-', '_')}_COMPLETE"
+    env = {**os.environ, env_var: "zsh_source"}
+    return _run_completion_command([command], env=env)
 
 
 def generate_argcomplete_bash_completion(command: str) -> Optional[str]:
     """Generate bash completion script for an argcomplete command."""
-    try:
-        # Use argcomplete's register-python-argcomplete
-        result = subprocess.run(
-            ["register-python-argcomplete", command],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
+    return _run_completion_command(["register-python-argcomplete", command])
 
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-        else:
-            # Generate eval statement as fallback
-            return f'eval "$(register-python-argcomplete {command})"'
 
-    except (
-        subprocess.TimeoutExpired,
-        subprocess.CalledProcessError,
-        FileNotFoundError,
-    ):
-        # Generate eval statement as fallback
-        return f'eval "$(register-python-argcomplete {command})"'
+def get_completion_errors() -> List[str]:
+    """Get list of commands that failed during completion generation."""
+    return _completion_errors.copy()
