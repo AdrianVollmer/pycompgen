@@ -91,7 +91,7 @@ def parse_pipx_output(output: str) -> List[InstalledPackage]:
                 venv_path = Path(pyvenv_cfg["home"]).parent
             else:
                 # Fallback to constructing path from standard pipx location
-                venv_path = Path.home() / ".local" / "share" / "pipx" / "venvs" / name
+                venv_path = Path.home() / ".local" / "pipx" / "venvs" / name
 
             version = (
                 info.get("metadata", {}).get("main_package", {}).get("package_version")
