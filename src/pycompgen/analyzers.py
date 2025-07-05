@@ -86,7 +86,7 @@ def find_package_commands(package: InstalledPackage) -> List[str]:
     # Use commands from package manager output if available
     if package.commands:
         return package.commands
-    
+
     # Fallback to package name if no commands found
     return [package.name]
 

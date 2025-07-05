@@ -142,7 +142,7 @@ another-package v2.1.0 (path: /another/path)
         result = parse_uv_output(output)
 
         assert result == []
-        
+
     def test_parse_uv_output_no_commands(self):
         """Test parsing uv output without command lines."""
         output = "test-package v1.0.0 (path: /fake/path/to/venv)\n"
@@ -177,11 +177,21 @@ class TestParsePipxOutput:
             "venvs": {
                 "test-package": {
                     "pyvenv_cfg": {"home": "/fake/venv/bin"},
-                    "metadata": {"main_package": {"package_version": "1.0.0", "apps": ["test-cmd"]}},
+                    "metadata": {
+                        "main_package": {
+                            "package_version": "1.0.0",
+                            "apps": ["test-cmd"],
+                        }
+                    },
                 },
                 "another-package": {
                     "pyvenv_cfg": {},
-                    "metadata": {"main_package": {"package_version": "2.0.0", "apps": ["another-cmd", "second-cmd"]}},
+                    "metadata": {
+                        "main_package": {
+                            "package_version": "2.0.0",
+                            "apps": ["another-cmd", "second-cmd"],
+                        }
+                    },
                 },
             }
         }
@@ -220,7 +230,7 @@ class TestParsePipxOutput:
         result = parse_pipx_output(json.dumps(pipx_data))
 
         assert result == []
-        
+
     def test_parse_pipx_output_no_apps(self):
         """Test parsing pipx output without apps field."""
         pipx_data = {
