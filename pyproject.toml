@@ -1,5 +1,5 @@
 [project]
-name = "compgen"
+name = "pycompgen"
 version = "0.1.0"
 description = "Generate shell completions automatically"
 readme = "README.md"
@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.scripts]
-compgen = "compgen:main"
+pycompgen = "pycompgen:main"
 
 [build-system]
 requires = ["hatchling"]
