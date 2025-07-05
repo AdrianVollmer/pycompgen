@@ -1,5 +1,6 @@
 import argparse
 import sys
+import time
 from pathlib import Path
 
 from .detectors import detect_packages
@@ -33,6 +34,12 @@ def main() -> None:
         action="store_true",
         help="Only write the source file contents to stdout",
     )
+    parser.add_argument(
+        "--cooldown-time",
+        type=int,
+        default=60,
+        help="Minimum seconds between regenerations (default: 60)",
+    )
 
     args = parser.parse_args()
 
@@ -48,6 +55,21 @@ def main() -> None:
             print(open(source_script, "r").read())
             sys.exit(0)
         except (FileNotFoundError, OSError):
+            pass
+
+    # Check cooldown period (skip if --source was given, but we already handled that above)
+    if source_script.exists() and not args.force:
+        try:
+            script_age = time.time() - source_script.stat().st_mtime
+            if script_age < args.cooldown_time:
+                remaining = args.cooldown_time - script_age
+                logger.info(
+                    f"Completions are fresh (last generated {script_age:.1f}s ago). "
+                    f"Skipping regeneration. Use --force to override or wait {remaining:.1f}s."
+                )
+                sys.exit(0)
+        except OSError:
+            # If we can't stat the file, continue with regeneration
             pass
 
     try:

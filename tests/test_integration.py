@@ -408,3 +408,183 @@ class TestErrorScenarios:
                 main()
 
         mock_logger.error.assert_called_once()
+
+
+class TestCooldownFeature:
+    """Test cooldown functionality."""
+
+    @patch("pycompgen.get_cache_dir")
+    @patch("pycompgen.setup_logging")
+    @patch("time.time")
+    def test_cooldown_skips_recent_completions(
+        self, mock_time, mock_setup_logging, mock_get_cache_dir, temp_dir
+    ):
+        """Test that recent completions are skipped due to cooldown."""
+        mock_logger = Mock()
+        mock_setup_logging.return_value = mock_logger
+        mock_get_cache_dir.return_value = temp_dir
+
+        # Create a recent source script
+        source_script = temp_dir / "completions.sh"
+        source_script.write_text("# test completion")
+
+        # Mock current time as 30 seconds after file creation
+        file_mtime = source_script.stat().st_mtime
+        mock_time.return_value = file_mtime + 30  # 30 seconds later
+
+        with patch("sys.argv", ["pycompgen", "--cooldown-time", "60"]):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+
+        # Should exit with code 0 (success, but skipped)
+        assert exc_info.value.code == 0
+
+        # Should log cooldown message
+        mock_logger.info.assert_called()
+        log_message = mock_logger.info.call_args[0][0]
+        assert "Skipping regeneration" in log_message
+        assert "30.0s ago" in log_message
+
+    @patch("pycompgen.save_source_script")
+    @patch("pycompgen.save_completions")
+    @patch("pycompgen.generate_completions")
+    @patch("pycompgen.analyze_packages")
+    @patch("pycompgen.detect_packages")
+    @patch("pycompgen.get_cache_dir")
+    @patch("pycompgen.setup_logging")
+    @patch("time.time")
+    def test_cooldown_allows_old_completions(
+        self,
+        mock_time,
+        mock_setup_logging,
+        mock_get_cache_dir,
+        mock_detect,
+        mock_analyze,
+        mock_generate,
+        mock_save_completions,
+        mock_save_source_script,
+        temp_dir,
+    ):
+        """Test that old completions are regenerated after cooldown period."""
+        mock_logger = Mock()
+        mock_setup_logging.return_value = mock_logger
+        mock_get_cache_dir.return_value = temp_dir
+
+        # Setup mocks for normal workflow
+        mock_detect.return_value = []
+        mock_analyze.return_value = []
+        mock_generate.return_value = []
+        mock_save_source_script.return_value = temp_dir / "completions.sh"
+
+        # Create an old source script
+        source_script = temp_dir / "completions.sh"
+        source_script.write_text("# old completion")
+
+        # Mock current time as 90 seconds after file creation (past 60s cooldown)
+        file_mtime = source_script.stat().st_mtime
+        mock_time.return_value = file_mtime + 90  # 90 seconds later
+
+        with patch("sys.argv", ["pycompgen", "--cooldown-time", "60"]):
+            main()
+
+        # Should proceed with normal workflow
+        mock_detect.assert_called_once()
+        mock_analyze.assert_called_once()
+        mock_generate.assert_called_once()
+
+    @patch("pycompgen.save_source_script")
+    @patch("pycompgen.save_completions")
+    @patch("pycompgen.generate_completions")
+    @patch("pycompgen.analyze_packages")
+    @patch("pycompgen.detect_packages")
+    @patch("pycompgen.get_cache_dir")
+    @patch("pycompgen.setup_logging")
+    @patch("time.time")
+    def test_cooldown_bypassed_by_force(
+        self,
+        mock_time,
+        mock_setup_logging,
+        mock_get_cache_dir,
+        mock_detect,
+        mock_analyze,
+        mock_generate,
+        mock_save_completions,
+        mock_save_source_script,
+        temp_dir,
+    ):
+        """Test that --force bypasses cooldown check."""
+        mock_logger = Mock()
+        mock_setup_logging.return_value = mock_logger
+        mock_get_cache_dir.return_value = temp_dir
+
+        # Setup mocks for normal workflow
+        mock_detect.return_value = []
+        mock_analyze.return_value = []
+        mock_generate.return_value = []
+        mock_save_source_script.return_value = temp_dir / "completions.sh"
+
+        # Create a very recent source script
+        source_script = temp_dir / "completions.sh"
+        source_script.write_text("# recent completion")
+
+        # Mock current time as 10 seconds after file creation (well within cooldown)
+        file_mtime = source_script.stat().st_mtime
+        mock_time.return_value = file_mtime + 10  # 10 seconds later
+
+        with patch("sys.argv", ["pycompgen", "--cooldown-time", "60", "--force"]):
+            main()
+
+        # Should proceed with normal workflow despite recent completion
+        mock_detect.assert_called_once()
+        mock_analyze.assert_called_once()
+        mock_generate.assert_called_once()
+
+    @patch("pycompgen.get_cache_dir")
+    @patch("pycompgen.setup_logging")
+    def test_cooldown_handles_missing_source_script(
+        self, mock_setup_logging, mock_get_cache_dir, temp_dir
+    ):
+        """Test that missing source script doesn't cause cooldown to fail."""
+        mock_logger = Mock()
+        mock_setup_logging.return_value = mock_logger
+        mock_get_cache_dir.return_value = temp_dir
+
+        # Don't create source script - it should not exist
+        with patch("pycompgen.detect_packages") as mock_detect:
+            mock_detect.return_value = []
+            with patch("pycompgen.analyze_packages") as mock_analyze:
+                mock_analyze.return_value = []
+                with patch("pycompgen.generate_completions") as mock_generate:
+                    mock_generate.return_value = []
+                    with patch("pycompgen.save_completions"):
+                        with patch("pycompgen.save_source_script") as mock_save_script:
+                            mock_save_script.return_value = temp_dir / "completions.sh"
+
+                            with patch(
+                                "sys.argv", ["pycompgen", "--cooldown-time", "60"]
+                            ):
+                                main()
+
+        # Should proceed normally when source script doesn't exist
+        mock_detect.assert_called_once()
+
+    @patch("pycompgen.get_cache_dir")
+    @patch("pycompgen.setup_logging")
+    def test_source_flag_bypasses_cooldown(
+        self, mock_setup_logging, mock_get_cache_dir, temp_dir
+    ):
+        """Test that --source flag bypasses cooldown check."""
+        mock_logger = Mock()
+        mock_setup_logging.return_value = mock_logger
+        mock_get_cache_dir.return_value = temp_dir
+
+        # Create a recent source script
+        source_script = temp_dir / "completions.sh"
+        source_script.write_text("# test completion content")
+
+        with patch("sys.argv", ["pycompgen", "--source", "--cooldown-time", "60"]):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+
+        # Should exit with code 0 (success)
+        assert exc_info.value.code == 0
