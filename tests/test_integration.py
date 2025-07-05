@@ -268,6 +268,14 @@ class TestEndToEndWorkflow:
             click_command.touch()
             click_command.chmod(0o755)
 
+            # Create the package directory structure that package_path expects
+            package_dir = (
+                venv_path / "lib" / "python3.11" / "site-packages" / "click-package"
+            )
+            package_dir.mkdir(parents=True)
+            # Create a test Python file that imports click
+            (package_dir / "__init__.py").write_text("import click\n")
+
             mock_run.side_effect = [
                 # uv tool list
                 Mock(stdout=f"click-package v1.0.0 ({venv_path})\n", returncode=0),
@@ -308,35 +316,53 @@ class TestEndToEndWorkflow:
     @patch("subprocess.run")
     def test_e2e_pipx_argcomplete_package(self, mock_run, temp_dir, capsys):
         """Test workflow with pipx argcomplete package."""
-        # Mock pipx list output
-        pipx_output = {
-            "venvs": {
-                "argcomplete-package": {
-                    "pyvenv_cfg": {"home": "/fake/pipx/venv/bin"},
-                    "metadata": {"main_package": {"package_version": "2.0.0"}},
+        # Create a temporary directory for the pipx venv
+        with tempfile.TemporaryDirectory() as temp_venv:
+            venv_path = Path(temp_venv)
+
+            # Create the bin directory and python executable that get_python_path expects
+            bin_dir = venv_path / "bin"
+            bin_dir.mkdir(parents=True)
+            python_exe = bin_dir / "python"
+            python_exe.touch()
+            python_exe.chmod(0o755)
+
+            # Create the package directory structure that package_path expects
+            package_dir = (
+                venv_path / "lib" / "python3.11" / "site-packages" / "argcomplete"
+            )
+            package_dir.mkdir(parents=True)
+            # Create a test Python file that imports argcomplete
+            (package_dir / "__init__.py").write_text("import argcomplete\n")
+
+            # Mock pipx list output
+            pipx_output = {
+                "venvs": {
+                    "argcomplete": {
+                        "pyvenv_cfg": {"home": f"{venv_path}/bin"},
+                        "metadata": {"main_package": {"package_version": "2.0.0"}},
+                    }
                 }
             }
-        }
 
-        mock_run.side_effect = [
-            # uv tool list (fails)
-            subprocess.CalledProcessError(1, ["uv"]),
-            # pipx list
-            Mock(stdout=json.dumps(pipx_output), returncode=0),
-            # package import check in fallback
-            Mock(returncode=0),
-            # click import check in fallback (fails)
-            Mock(returncode=1),
-            # argcomplete import check in fallback (succeeds)
-            Mock(returncode=0),
-            # argcomplete completion generation
-            Mock(stdout="argcomplete completion output", returncode=0),
-        ]
+            mock_run.side_effect = [
+                # uv tool list (fails)
+                subprocess.CalledProcessError(1, ["uv"]),
+                # pipx list
+                Mock(stdout=json.dumps(pipx_output), returncode=0),
+                # has_dependency check for click (fails)
+                Mock(returncode=1),
+                # has_dependency check for argcomplete (succeeds)
+                Mock(returncode=0),
+                # argcomplete completion generation (bash)
+                Mock(stdout="argcomplete completion output", returncode=0),
+                # argcomplete completion generation (zsh)
+                Mock(stdout="argcomplete zsh completion output", returncode=0),
+            ]
 
-        with patch("pathlib.Path.exists", return_value=True):
             with patch(
                 "pycompgen.analyzers.find_package_commands",
-                return_value=["argcomplete-command"],
+                return_value=["argcomplete"],
             ):
                 with patch(
                     "sys.argv", ["pycompgen", "--cache-dir", str(temp_dir), "--verbose"]

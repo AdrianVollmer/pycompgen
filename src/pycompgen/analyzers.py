@@ -50,54 +50,15 @@ def detect_completion_type(package: InstalledPackage) -> Optional[CompletionType
     if not python_path:
         return None
 
-    # Try to find the package directory
-    try:
-        package_path: Path = list(
-            package.path.rglob("lib/python*/site-packages/" + package.name)
-        )[0]
-    except IndexError:
-        # If we can't find the exact package directory, use a fallback approach
-        # This is for compatibility with tests and environments where the structure differs
-        try:
-            result = subprocess.run(
-                [str(python_path), "-c", f"import {package.name}"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if result.returncode != 0:
-                return None
-
-            # Check for click
-            click_result = subprocess.run(
-                [str(python_path), "-c", "import click"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if click_result.returncode == 0:
-                return CompletionType.CLICK
-
-            # Check for argcomplete
-            argcomplete_result = subprocess.run(
-                [str(python_path), "-c", "import argcomplete"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if argcomplete_result.returncode == 0:
-                return CompletionType.ARGCOMPLETE
-
-            return None
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
-            return None
+    if not package.package_path:
+        return None
 
     # Check for click
-    if has_dependency(python_path, package_path, "click"):
+    if has_dependency(python_path, package.package_path, "click"):
         return CompletionType.CLICK
 
     # Check for argcomplete
-    if has_dependency(python_path, package_path, "argcomplete"):
+    if has_dependency(python_path, package.package_path, "argcomplete"):
         return CompletionType.ARGCOMPLETE
 
     return None

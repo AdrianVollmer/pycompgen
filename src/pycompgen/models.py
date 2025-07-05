@@ -28,6 +28,16 @@ class InstalledPackage:
     version: Optional[str] = None
     commands: Optional[List[str]] = None
 
+    @property
+    def package_path(self) -> Optional[Path]:
+        try:
+            package_path: Path = list(
+                self.path.rglob("lib/python*/site-packages/" + self.name)
+            )[0]
+            return package_path
+        except IndexError:
+            return None
+
 
 @dataclass
 class CompletionPackage:

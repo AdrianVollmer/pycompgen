@@ -110,6 +110,7 @@ class TestDetectCompletionType:
         mock_package = Mock(spec=InstalledPackage)
         mock_package.path = package_base
         mock_package.name = "test-package"
+        mock_package.package_path = package_dir
 
         mock_python_path = tmp_path / "fake" / "python"
         mock_python_path.parent.mkdir(parents=True)
@@ -140,6 +141,7 @@ class TestDetectCompletionType:
         mock_package = Mock(spec=InstalledPackage)
         mock_package.path = package_base
         mock_package.name = "test-package"
+        mock_package.package_path = package_dir
 
         mock_python_path = tmp_path / "fake" / "python"
         mock_python_path.parent.mkdir(parents=True)
@@ -172,6 +174,7 @@ class TestDetectCompletionType:
         mock_package = Mock(spec=InstalledPackage)
         mock_package.path = package_base
         mock_package.name = "test-package"
+        mock_package.package_path = package_dir
 
         mock_python_path = tmp_path / "fake" / "python"
         mock_python_path.parent.mkdir(parents=True)
@@ -200,6 +203,7 @@ class TestDetectCompletionType:
         mock_package = Mock(spec=InstalledPackage)
         mock_package.path = package_base
         mock_package.name = "test-package"
+        mock_package.package_path = package_dir
 
         mock_get_python.return_value = None
         mock_find_commands.return_value = ["regular-command"]  # No hardcoded commands
@@ -446,6 +450,7 @@ class TestHardcodedCompletionDetection:
         mock_package = Mock(spec=InstalledPackage)
         mock_package.path = package_base
         mock_package.name = "some-package"
+        mock_package.package_path = package_dir
 
         result = detect_completion_type(mock_package)
 
