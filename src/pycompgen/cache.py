@@ -29,7 +29,7 @@ def save_completions(
 
     for completion in completions:
         save_completion(completion, cache_dir, force)
-    
+
     logger.info(f"Saved {len(completions)} completion files to {cache_dir}")
 
 
@@ -88,9 +88,9 @@ def generate_source_script(cache_dir: Path) -> str:
         for filepath in sorted(completion_files):
             script_lines.append(f"source {filepath}")
         script_lines.append("")
-    
+
     script_lines.append("# Add this to your shell config: source <path-to-this-file>")
-    
+
     return "\n".join(script_lines)
 
 
@@ -98,7 +98,7 @@ def save_source_script(cache_dir: Path) -> Path:
     """Save the source script to cache directory."""
     logger = get_logger()
     cache_dir.mkdir(parents=True, exist_ok=True)
-    
+
     script_content = generate_source_script(cache_dir)
     script_path = cache_dir / "completions.sh"
 
