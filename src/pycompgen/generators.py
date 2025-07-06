@@ -105,7 +105,7 @@ def generate_argcomplete_completion(
     completion_parts = []
 
     for command in package.commands:
-        bash_completion = generate_argcomplete_bash_completion(command)
+        bash_completion = generate_argcomplete_bash_completion(command, package)
         if bash_completion:
             completion_parts.append(f"# Completion for {command}\n{bash_completion}")
 
@@ -228,9 +228,12 @@ def generate_click_shell_completion(
     return _run_completion_command([command], env=env)
 
 
-def generate_argcomplete_bash_completion(command: str) -> Optional[str]:
+def generate_argcomplete_bash_completion(
+    command: str, package: CompletionPackage
+) -> Optional[str]:
     """Generate bash completion script for an argcomplete command."""
-    return _run_completion_command(["register-python-argcomplete", command])
+    cmd = str(package.package.path / "bin" / "register-python-argcomplete")
+    return _run_completion_command([cmd, command])
 
 
 def generate_hardcoded_shell_completion(

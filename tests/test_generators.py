@@ -409,11 +409,28 @@ class TestGenerateArgcompleteCompletionBash:
         """Test argcomplete bash completion generation."""
         mock_run.return_value = "argcomplete completion output"
 
-        result = generate_argcomplete_bash_completion("test-command")
+        # Mock the package with a path that has a bin directory
+        mock_completion_package = Mock(spec=CompletionPackage)
+        mock_package = Mock()
+        # Mock pathlib.Path behavior for package.path / "bin" / "register-python-argcomplete"
+        mock_path = Mock()
+        mock_path.__truediv__ = Mock(
+            return_value=Mock(
+                __truediv__=Mock(
+                    return_value="/fake/path/bin/register-python-argcomplete"
+                )
+            )
+        )
+        mock_package.path = mock_path
+        mock_completion_package.package = mock_package
+
+        result = generate_argcomplete_bash_completion(
+            "test-command", mock_completion_package
+        )
 
         assert result == "argcomplete completion output"
         mock_run.assert_called_once_with(
-            ["register-python-argcomplete", "test-command"]
+            ["/fake/path/bin/register-python-argcomplete", "test-command"]
         )
 
     @patch("pycompgen.generators._run_completion_command")
@@ -421,7 +438,24 @@ class TestGenerateArgcompleteCompletionBash:
         """Test argcomplete completion generation failure."""
         mock_run.return_value = None
 
-        result = generate_argcomplete_bash_completion("test-command")
+        # Mock the package with a path that has a bin directory
+        mock_completion_package = Mock(spec=CompletionPackage)
+        mock_package = Mock()
+        # Mock pathlib.Path behavior for package.path / "bin" / "register-python-argcomplete"
+        mock_path = Mock()
+        mock_path.__truediv__ = Mock(
+            return_value=Mock(
+                __truediv__=Mock(
+                    return_value="/fake/path/bin/register-python-argcomplete"
+                )
+            )
+        )
+        mock_package.path = mock_path
+        mock_completion_package.package = mock_package
+
+        result = generate_argcomplete_bash_completion(
+            "test-command", mock_completion_package
+        )
 
         assert result is None
 
