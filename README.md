@@ -38,8 +38,7 @@ Add the source script to your shell config:
 
 ``` bash
 # Add to ~/.bashrc or ~/.zshrc
-source <(pycompgen --source)
-(pycompgen &)
+source <(pycompgen --source) && (pycompgen &)
 ```
 
 This will load the generated shell completions and generate new
