@@ -17,15 +17,6 @@ def detect_packages() -> List[InstalledPackage]:
 def detect_uv_packages() -> List[InstalledPackage]:
     """Detect packages installed via uv tool."""
 
-    # Sample format:
-    # $ uv tool list --show-paths
-    #  bagels v0.3.6 (/home/user/.local/share/uv/tools/bagels)
-    #  - bagels (/home/user/.local/bin/bagels)
-    #  coercer v2.4.3 (/home/adrian/.local/share/uv/tools/coercer)
-    #  - coercer (/home/adrian/.local/bin/coercer)
-    #  pycompgen v0.1.0 (/home/adrian/.local/share/uv/tools/pycompgen)
-    #  - pycompgen (/home/adrian/.local/bin/pycompgen)
-
     try:
         result = subprocess.run(
             ["uv", "tool", "list", "--show-paths"],
@@ -40,26 +31,6 @@ def detect_uv_packages() -> List[InstalledPackage]:
 
 def detect_pipx_packages() -> List[InstalledPackage]:
     """Detect packages installed via pipx."""
-
-    # Sample format:
-    #  {
-    #      "pipx_spec_version": "0.1",
-    #      "venvs": {
-    #          "black": {
-    #              "metadata": {
-    #                  "injected_packages": {},
-    #                  "main_package": {
-    #                      "app_paths": [
-    #                          {
-    #                              "__Path__": "/home/user/.local/pipx/venvs/black/bin/black",
-    #                              "__type__": "Path"
-    #                          },
-    #                          {
-    #                              "__Path__": "/home/user/.local/pipx/venvs/black/bin/blackd",
-    #                              "__type__": "Path"
-    #                          }
-    #                      ],
-    # ...
 
     try:
         result = subprocess.run(
@@ -137,6 +108,26 @@ def parse_uv_output(output: str) -> List[InstalledPackage]:
 
 def parse_pipx_output(output: str) -> List[InstalledPackage]:
     """Parse pipx list JSON output."""
+    # Sample format:
+    #  {
+    #      "pipx_spec_version": "0.1",
+    #      "venvs": {
+    #          "black": {
+    #              "metadata": {
+    #                  "injected_packages": {},
+    #                  "main_package": {
+    #                      "app_paths": [
+    #                          {
+    #                              "__Path__": "/home/user/.local/pipx/venvs/black/bin/black",
+    #                              "__type__": "Path"
+    #                          },
+    #                          {
+    #                              "__Path__": "/home/user/.local/pipx/venvs/black/bin/blackd",
+    #                              "__type__": "Path"
+    #                          }
+    #                      ],
+    # ...
+
     try:
         data = json.loads(output)
         packages = []
