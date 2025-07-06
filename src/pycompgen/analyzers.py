@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import List, Optional
 
 from .models import InstalledPackage, CompletionPackage, CompletionType, PackageManager
-from .generators import HARDCODED_COMPLETION_GENERATORS
 
 
 def analyze_packages(packages: List[InstalledPackage]) -> List[CompletionPackage]:
@@ -37,12 +36,7 @@ def analyze_package(package: InstalledPackage) -> Optional[CompletionPackage]:
 
 
 def detect_completion_type(package: InstalledPackage) -> Optional[CompletionType]:
-    """Detect if package uses click, argcomplete, or hardcoded completions."""
-    # First check if any commands are hardcoded completion generators
-    commands = find_package_commands(package)
-    for command in commands:
-        if command in HARDCODED_COMPLETION_GENERATORS:
-            return CompletionType.HARDCODED
+    """Detect if package uses click, or argcomplete completions."""
 
     # Look for click or argcomplete in the package's environment
     python_path = get_python_path(package)
@@ -129,11 +123,7 @@ def find_package_commands(package: InstalledPackage) -> List[str]:
 def verify_completion_support(package: CompletionPackage) -> bool:
     """Verify that the package actually supports completion generation."""
     for command in package.commands:
-        if package.completion_type == CompletionType.HARDCODED:
-            # For hardcoded completions, check if command is in our registry
-            if command in HARDCODED_COMPLETION_GENERATORS:
-                return True
-        elif package.completion_type == CompletionType.CLICK:
+        if package.completion_type == CompletionType.CLICK:
             # Try to generate click completion
             python_path = get_python_path(package.package)
             if python_path and test_click_completion(python_path, command):

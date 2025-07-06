@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 import time
 from pathlib import Path
@@ -8,11 +9,17 @@ from .analyzers import analyze_packages
 from .generators import generate_completions
 from .cache import save_completions, get_cache_dir, save_source_script, get_source_path
 from .logger import setup_logging
+from .models import Shell
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate shell completions for installed Python tools"
+    )
+    parser.add_argument(
+        "--shell",
+        type=str,
+        help="Target shell (default: ${SHELL:-bash}",
     )
     parser.add_argument(
         "--cache-dir",
@@ -73,37 +80,40 @@ def main() -> None:
             pass
 
     try:
-        # Detect installed packages
-        logger.info("Detecting installed packages...")
-        packages = detect_packages()
-        logger.info(f"Found {len(packages)} packages")
-
-        # Analyze for completion support
-        logger.info("Analyzing packages for completion support...")
-        completion_packages = analyze_packages(packages)
-        logger.info(
-            f"Found {len(completion_packages)} packages with completion support"
-        )
-
-        # Generate completions
-        logger.info("Generating completions...")
-        completions = generate_completions(completion_packages)
-        logger.info(f"Generated {len(completions)} completions")
-
-        # Save to cache
-        save_completions(completions, cache_dir, force=args.force)
-
-        # Generate source script
-        source_script = save_source_script(cache_dir)
-
-        logger.info(f"Completions saved to {cache_dir}")
-        logger.info(f"Source script: {source_script}")
+        shell = Shell(args.shell or os.path.basename(os.environ.get("SHELL", "bash")))
+        run(shell, cache_dir, args.force, logger)
 
     except Exception as e:
         logger.error(f"Error: {e}", exc_info=True)
         if args.verbose:
             print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def run(shell: Shell, cache_dir: Path, force: bool, logger) -> None:
+    # Detect installed packages
+    logger.info("Detecting installed packages...")
+    packages = detect_packages()
+    logger.info(f"Found {len(packages)} packages")
+
+    # Analyze for completion support
+    logger.info("Analyzing packages for completion support...")
+    completion_packages = analyze_packages(packages)
+    logger.info(f"Found {len(completion_packages)} packages with completion support")
+
+    # Generate completions
+    logger.info(f"Generating completions for {shell.value}...")
+    completions = generate_completions(completion_packages, shell)
+    logger.info(f"Generated {len(completions)} completions")
+
+    # Save to cache
+    save_completions(completions, cache_dir, force=force)
+
+    # Generate source script
+    source_script = save_source_script(cache_dir)
+
+    logger.info(f"Completions saved to {cache_dir}")
+    logger.info(f"Source script: {source_script}")
 
 
 if __name__ == "__main__":

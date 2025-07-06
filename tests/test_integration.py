@@ -59,7 +59,11 @@ class TestMainWorkflow:
         # Verify workflow
         mock_detect.assert_called_once()
         mock_analyze.assert_called_once_with(mock_packages)
-        mock_generate.assert_called_once_with(mock_completion_packages)
+        # Should be called with completion packages and shell
+        assert mock_generate.call_count == 1
+        call_args = mock_generate.call_args[0]
+        assert call_args[0] == mock_completion_packages
+        # Second argument should be a Shell enum
         mock_save_completions.assert_called_once_with(
             mock_completions, temp_dir, force=False
         )
@@ -196,9 +200,16 @@ class TestMainWorkflow:
 class TestEndToEndWorkflow:
     """End-to-end tests with minimal mocking."""
 
+    @patch("shutil.which")
+    @patch("pycompgen.generators.generate_hardcoded_completion")
     @patch("subprocess.run")
-    def test_e2e_no_packages_found(self, mock_run, temp_dir, capsys):
+    def test_e2e_no_packages_found(
+        self, mock_run, mock_hardcoded, mock_which, temp_dir, capsys
+    ):
         """Test end-to-end workflow when no packages are found."""
+        # Mock hardcoded completion to return empty list
+        mock_hardcoded.return_value = []
+
         # Mock subprocess calls to return empty results
         mock_run.side_effect = [
             # uv tool list
@@ -218,9 +229,15 @@ class TestEndToEndWorkflow:
         assert "Found 0 packages with completion support" in captured.err
         assert "Generated 0 completions" in captured.err
 
+    @patch("shutil.which")
     @patch("subprocess.run")
-    def test_e2e_uv_packages_no_completion_support(self, mock_run, temp_dir, capsys):
+    def test_e2e_uv_packages_no_completion_support(
+        self, mock_run, mock_which, temp_dir, capsys
+    ):
         """Test workflow with uv packages that don't support completions."""
+        # Mock shutil.which to return None (no hardcoded commands found)
+        mock_which.return_value = None
+
         # Mock uv tool list output
         uv_output = "test-package v1.0.0 (path: /fake/venv)\n"
 
@@ -243,12 +260,16 @@ class TestEndToEndWorkflow:
         assert "Found 1 packages" in captured.err  # Log messages go to stderr
         assert "Found 0 packages with completion support" in captured.err
 
+    @patch("shutil.which")
     @patch("subprocess.run")
     @patch("pathlib.Path.exists")
     def test_e2e_click_package_with_completion(
-        self, mock_exists, mock_run, temp_dir, capsys
+        self, mock_exists, mock_run, mock_which, temp_dir, capsys
     ):
         """Test workflow with click package that supports completions."""
+        # Mock shutil.which to return None (no hardcoded commands found)
+        mock_which.return_value = None
+
         # Mock uv tool list output
 
         # Mock file system
@@ -303,7 +324,9 @@ class TestEndToEndWorkflow:
         captured = capsys.readouterr()
         assert "Found 1 packages" in captured.err  # Log messages go to stderr
         assert "Found 1 packages with completion support" in captured.err
-        assert "Generated 2 completions" in captured.err  # Now generates bash + zsh
+        assert (
+            "Generated 1 completions" in captured.err
+        )  # Now generates for single shell
 
         # Check that completion file was created
         completion_files = list(temp_dir.glob("*.sh"))
@@ -313,9 +336,15 @@ class TestEndToEndWorkflow:
         source_script = temp_dir / "completions.sh"
         assert source_script.exists()
 
+    @patch("pycompgen.generators.generate_hardcoded_completion")
     @patch("subprocess.run")
-    def test_e2e_pipx_argcomplete_package(self, mock_run, temp_dir, capsys):
+    def test_e2e_pipx_argcomplete_package(
+        self, mock_run, mock_hardcoded, temp_dir, capsys
+    ):
         """Test workflow with pipx argcomplete package."""
+        # Mock hardcoded completion to return empty list
+        mock_hardcoded.return_value = []
+
         # Create a temporary directory for the pipx venv
         with tempfile.TemporaryDirectory() as temp_venv:
             venv_path = Path(temp_venv)
@@ -373,8 +402,8 @@ class TestEndToEndWorkflow:
         assert "Found 1 packages" in captured.err  # Log messages go to stderr
         assert "Found 1 packages with completion support" in captured.err
         assert (
-            "Generated 2 completions" in captured.err
-        )  # Argcomplete now generates both bash and zsh
+            "Generated 1 completions" in captured.err
+        )  # Argcomplete now generates for single shell
 
 
 class TestErrorScenarios:

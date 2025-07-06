@@ -1,6 +1,8 @@
 import os
+from pathlib import Path
+import shutil
 import subprocess
-from typing import List, Optional, Dict, Literal
+from typing import List, Optional, Dict
 
 from .models import CompletionPackage, GeneratedCompletion, CompletionType, Shell
 from .logger import get_logger
@@ -10,24 +12,32 @@ _completion_errors: List[str] = []
 
 # Hardcoded completion generators mapping command to completion generation command
 HARDCODED_COMPLETION_GENERATORS = {
-    "uv": ["uv", "generate-shell-completion"],
-    "uvx": ["uvx", "--generate-shell-completion"],
-    "pipx": ["pipx", "completions"],
+    "uv": {
+        Shell.BASH: ["uv", "generate-shell-completion", "bash"],
+        Shell.ZSH: ["uv", "generate-shell-completion", "zsh"],
+    },
+    "uvx": {
+        Shell.BASH: ["uvx", "--generate-shell-completion", "bash"],
+        Shell.ZSH: ["uvx", "--generate-shell-completion", "zsh"],
+    },
 }
 
 logger = get_logger()
 
 
 def generate_completions(
-    packages: List[CompletionPackage],
+    packages: List[CompletionPackage], shell: Shell
 ) -> List[GeneratedCompletion]:
     """Generate shell completions for all packages."""
     completions = []
     _completion_errors.clear()  # Reset error list
 
     for package in packages:
-        package_completions = generate_completion(package)
+        package_completions = generate_completion(package, shell)
         completions.extend(package_completions)
+
+    hardcoded_completions = generate_hardcoded_completion(shell)
+    completions.extend(hardcoded_completions)
 
     # Log summary of errors if any occurred
     if _completion_errors:
@@ -38,61 +48,43 @@ def generate_completions(
     return completions
 
 
-def generate_completion(package: CompletionPackage) -> List[GeneratedCompletion]:
+def generate_completion(
+    package: CompletionPackage, shell: Shell
+) -> List[GeneratedCompletion]:
     """Generate completions for a single package (multiple shells)."""
     completions = []
 
     if package.completion_type == CompletionType.CLICK:
-        completions.extend(generate_click_completion(package))
+        completions.extend(generate_click_completion(package, shell))
     elif package.completion_type == CompletionType.ARGCOMPLETE:
-        completions.extend(generate_argcomplete_completion(package))
-    elif package.completion_type == CompletionType.HARDCODED:
-        completions.extend(generate_hardcoded_completion(package))
+        completions.extend(generate_argcomplete_completion(package, shell))
 
     return completions
 
 
 def generate_click_completion(
     package: CompletionPackage,
+    shell: Shell,
 ) -> List[GeneratedCompletion]:
-    """Generate click completion scripts for multiple shells."""
+    """Generate click completion scripts for a shell."""
     completions = []
 
-    # Generate bash completions
-    bash_parts = []
+    # Generate shell completions
+    parts = []
     for command in package.commands:
-        bash_completion = generate_click_shell_completion(command, shell="bash")
-        if bash_completion:
-            bash_parts.append(f"# Completion for {command}\n{bash_completion}")
+        completion = generate_click_shell_completion(command, shell=shell)
+        if completion:
+            parts.append(f"# Completion for {command}\n{completion}")
 
-    if bash_parts:
-        bash_content = "\n".join(bash_parts)
+    if parts:
+        content = "\n".join(parts)
         completions.append(
             GeneratedCompletion(
                 package_name=package.package.name,
                 completion_type=CompletionType.CLICK,
-                content=bash_content,
+                content=content,
                 commands=package.commands,
-                shell=Shell.BASH,
-            )
-        )
-
-    # Generate zsh completions
-    zsh_parts = []
-    for command in package.commands:
-        zsh_completion = generate_click_shell_completion(command, shell="zsh")
-        if zsh_completion:
-            zsh_parts.append(f"# Completion for {command}\n{zsh_completion}")
-
-    if zsh_parts:
-        zsh_content = "\n".join(zsh_parts)
-        completions.append(
-            GeneratedCompletion(
-                package_name=package.package.name,
-                completion_type=CompletionType.CLICK,
-                content=zsh_content,
-                commands=package.commands,
-                shell=Shell.ZSH,
+                shell=shell,
             )
         )
 
@@ -100,7 +92,7 @@ def generate_click_completion(
 
 
 def generate_argcomplete_completion(
-    package: CompletionPackage,
+    package: CompletionPackage, shell: Shell
 ) -> List[GeneratedCompletion]:
     """Generate argcomplete completion scripts for bash and zsh (content is identical)."""
     completion_parts = []
@@ -116,68 +108,51 @@ def generate_argcomplete_completion(
     # Combine all completions
     content = "\n".join(completion_parts)
 
-    # Generate for both bash and zsh since argcomplete works with both
+    # Generate for either bash or zsh since argcomplete works with both
     return [
         GeneratedCompletion(
             package_name=package.package.name,
             completion_type=CompletionType.ARGCOMPLETE,
             content=content,
             commands=package.commands,
-            shell=Shell.BASH,
-        ),
-        GeneratedCompletion(
-            package_name=package.package.name,
-            completion_type=CompletionType.ARGCOMPLETE,
-            content=content,
-            commands=package.commands,
-            shell=Shell.ZSH,
+            shell=shell,
         ),
     ]
 
 
-def generate_hardcoded_completion(
-    package: CompletionPackage,
-) -> List[GeneratedCompletion]:
-    """Generate hardcoded completion scripts for multiple shells."""
+def generate_hardcoded_completion(shell: Shell) -> List[GeneratedCompletion]:
+    """Generate hardcoded completion scripts for a shell."""
     completions = []
 
-    # Generate bash completions
-    bash_parts = []
-    for command in package.commands:
-        bash_completion = generate_hardcoded_shell_completion(command, shell="bash")
-        if bash_completion:
-            bash_parts.append(f"# Completion for {command}\n{bash_completion}")
+    # Generate completions
+    for name, shell_specific_commands in HARDCODED_COMPLETION_GENERATORS.items():
+        command = shell_specific_commands[shell]
 
-    if bash_parts:
-        bash_content = "\n".join(bash_parts)
-        completions.append(
-            GeneratedCompletion(
-                package_name=package.package.name,
-                completion_type=CompletionType.HARDCODED,
-                content=bash_content,
-                commands=package.commands,
-                shell=Shell.BASH,
+        if not command:
+            continue
+
+        base_command = command[0]
+
+        # Check if command is in $HOME, otherwise shell completions should be
+        # handled system-wide
+        path = shutil.which(base_command)
+        home = Path(os.environ.get("HOME", "/"))
+
+        if not (path and Path(path).is_relative_to(home)):
+            continue
+
+        content = _run_completion_command(command)
+
+        if content:
+            completions.append(
+                GeneratedCompletion(
+                    package_name=name,
+                    completion_type=CompletionType.HARDCODED,
+                    content=content,
+                    commands=[base_command],
+                    shell=shell,
+                )
             )
-        )
-
-    # Generate zsh completions
-    zsh_parts = []
-    for command in package.commands:
-        zsh_completion = generate_hardcoded_shell_completion(command, shell="zsh")
-        if zsh_completion:
-            zsh_parts.append(f"# Completion for {command}\n{zsh_completion}")
-
-    if zsh_parts:
-        zsh_content = "\n".join(zsh_parts)
-        completions.append(
-            GeneratedCompletion(
-                package_name=package.package.name,
-                completion_type=CompletionType.HARDCODED,
-                content=zsh_content,
-                commands=package.commands,
-                shell=Shell.ZSH,
-            )
-        )
 
     return completions
 
@@ -216,14 +191,11 @@ def _run_completion_command(
         return None
 
 
-def generate_click_shell_completion(
-    command: str, shell: Literal["bash", "zsh"]
-) -> Optional[str]:
+def generate_click_shell_completion(command: str, shell: Shell) -> Optional[str]:
     """Generate shell completion script for a click command."""
     env_var = f"_{command.upper().replace('-', '_')}_COMPLETE"
 
-    assert shell in ["bash", "zsh"]
-    shell_source = f"{shell}_source"
+    shell_source = f"{shell.value}_source"
     env = {**os.environ, env_var: shell_source}
     logger.debug(f"Generating completions: {env_var}={shell_source} {command}")
     return _run_completion_command([command], env=env)
@@ -235,20 +207,6 @@ def generate_argcomplete_bash_completion(
     """Generate bash completion script for an argcomplete command."""
     cmd = str(package.package.path / "bin" / "register-python-argcomplete")
     return _run_completion_command([cmd, command])
-
-
-def generate_hardcoded_shell_completion(
-    command: str, shell: Literal["bash", "zsh"]
-) -> Optional[str]:
-    """Generate shell completion script for a hardcoded command."""
-    if command not in HARDCODED_COMPLETION_GENERATORS:
-        return None
-
-    base_command = HARDCODED_COMPLETION_GENERATORS[command]
-    completion_command = base_command + [shell]
-
-    logger.debug(f"Generating hardcoded completions: {' '.join(completion_command)}")
-    return _run_completion_command(completion_command)
 
 
 def get_completion_errors() -> List[str]:

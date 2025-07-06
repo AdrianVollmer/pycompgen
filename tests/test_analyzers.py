@@ -1,6 +1,5 @@
 from unittest.mock import Mock, patch
 import subprocess
-from pathlib import Path
 
 from pycompgen.analyzers import (
     analyze_packages,
@@ -9,7 +8,6 @@ from pycompgen.analyzers import (
     get_python_path,
     has_dependency,
     find_package_commands,
-    verify_completion_support,
 )
 from pycompgen.models import (
     InstalledPackage,
@@ -386,114 +384,3 @@ class TestFindPackageCommands:
 
         # Should fall back to package name
         assert result == ["test-package"]
-
-
-class TestHardcodedCompletionDetection:
-    """Test hardcoded completion detection."""
-
-    @patch("pycompgen.analyzers.find_package_commands")
-    def test_detect_completion_type_hardcoded_uv(self, mock_find_commands):
-        """Test detection of hardcoded completion for uv."""
-        mock_find_commands.return_value = ["uv"]
-
-        mock_package = Mock(spec=InstalledPackage)
-        mock_package.name = "uv"
-
-        result = detect_completion_type(mock_package)
-
-        assert result == CompletionType.HARDCODED
-
-    @patch("pycompgen.analyzers.find_package_commands")
-    def test_detect_completion_type_hardcoded_uvx(self, mock_find_commands):
-        """Test detection of hardcoded completion for uvx."""
-        mock_find_commands.return_value = ["uvx"]
-
-        mock_package = Mock(spec=InstalledPackage)
-        mock_package.name = "uvx"
-
-        result = detect_completion_type(mock_package)
-
-        assert result == CompletionType.HARDCODED
-
-    @patch("pycompgen.analyzers.find_package_commands")
-    def test_detect_completion_type_hardcoded_mixed_commands(self, mock_find_commands):
-        """Test detection when hardcoded command is mixed with others."""
-        mock_find_commands.return_value = ["regular-command", "uv", "another-command"]
-
-        mock_package = Mock(spec=InstalledPackage)
-        mock_package.name = "some-package"
-
-        result = detect_completion_type(mock_package)
-
-        assert result == CompletionType.HARDCODED
-
-    @patch("pycompgen.analyzers.find_package_commands")
-    @patch("pycompgen.analyzers.get_python_path")
-    @patch("pycompgen.analyzers.has_dependency")
-    def test_detect_completion_type_hardcoded_fallback_to_click(
-        self, mock_has_dependency, mock_get_python_path, mock_find_commands, tmp_path
-    ):
-        """Test fallback to click when no hardcoded completion found."""
-        # Create package directory structure
-        package_base = tmp_path / "packages" / "some-package"
-        package_dir = (
-            package_base / "lib" / "python3.11" / "site-packages" / "some-package"
-        )
-        package_dir.mkdir(parents=True)
-
-        mock_find_commands.return_value = ["regular-command"]
-        mock_get_python_path.return_value = Path("/fake/python")
-        mock_has_dependency.side_effect = (
-            lambda python_path, package_path, dep: dep == "click"
-        )
-
-        mock_package = Mock(spec=InstalledPackage)
-        mock_package.path = package_base
-        mock_package.name = "some-package"
-        mock_package.package_path = package_dir
-
-        result = detect_completion_type(mock_package)
-
-        assert result == CompletionType.CLICK
-
-    def test_verify_completion_support_hardcoded(self):
-        """Test verification of hardcoded completion support."""
-        mock_installed_package = Mock(spec=InstalledPackage)
-        mock_installed_package.name = "uv"
-
-        mock_package = Mock(spec=CompletionPackage)
-        mock_package.package = mock_installed_package
-        mock_package.completion_type = CompletionType.HARDCODED
-        mock_package.commands = ["uv"]
-
-        result = verify_completion_support(mock_package)
-
-        assert result is True
-
-    def test_verify_completion_support_hardcoded_unknown_command(self):
-        """Test verification fails for unknown hardcoded command."""
-        mock_installed_package = Mock(spec=InstalledPackage)
-        mock_installed_package.name = "unknown-tool"
-
-        mock_package = Mock(spec=CompletionPackage)
-        mock_package.package = mock_installed_package
-        mock_package.completion_type = CompletionType.HARDCODED
-        mock_package.commands = ["unknown-tool"]
-
-        result = verify_completion_support(mock_package)
-
-        assert result is False
-
-    def test_verify_completion_support_hardcoded_mixed_commands(self):
-        """Test verification succeeds if any command is hardcoded."""
-        mock_installed_package = Mock(spec=InstalledPackage)
-        mock_installed_package.name = "mixed-package"
-
-        mock_package = Mock(spec=CompletionPackage)
-        mock_package.package = mock_installed_package
-        mock_package.completion_type = CompletionType.HARDCODED
-        mock_package.commands = ["unknown-tool", "uv", "another-unknown"]
-
-        result = verify_completion_support(mock_package)
-
-        assert result is True
