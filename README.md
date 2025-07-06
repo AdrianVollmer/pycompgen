@@ -9,6 +9,7 @@ besides some select commands:
 
 - uv
 - uvx
+- pipx
 
 ## Installation
 

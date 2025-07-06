@@ -12,6 +12,7 @@ _completion_errors: List[str] = []
 HARDCODED_COMPLETION_GENERATORS = {
     "uv": ["uv", "generate-shell-completion"],
     "uvx": ["uvx", "--generate-shell-completion"],
+    "pipx": ["pipx", "completions"],
 }
 
 logger = get_logger()
