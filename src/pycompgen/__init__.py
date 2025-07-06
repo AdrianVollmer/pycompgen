@@ -13,6 +13,36 @@ from .models import Shell
 
 
 def main() -> None:
+    args = parse_args()
+
+    # Set up logging
+    logger = setup_logging(args.verbose)
+
+    shell = Shell(args.shell or os.path.basename(os.environ.get("SHELL", "bash")))
+    cache_dir = args.cache_dir or get_cache_dir()
+    source_script = get_source_path(cache_dir, shell)
+
+    if args.source:
+        try:
+            # Print the source file contents and exit
+            print(open(source_script, "r").read())
+            sys.exit(0)
+        except (FileNotFoundError, OSError):
+            print("Source file does not exist or permission denied")
+            sys.exit(1)
+
+    check_cooldown_period(source_script, args, logger)
+
+    try:
+        run(shell, cache_dir, args.force, logger)
+    except Exception as e:
+        logger.error(f"Error: {e}", exc_info=True)
+        if args.verbose:
+            print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate shell completions for installed Python tools"
     )
@@ -50,22 +80,10 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Set up logging
-    logger = setup_logging(args.verbose)
+    return args
 
-    shell = Shell(args.shell or os.path.basename(os.environ.get("SHELL", "bash")))
-    cache_dir = args.cache_dir or get_cache_dir()
-    source_script = get_source_path(cache_dir, shell)
 
-    if args.source:
-        try:
-            # Print the source file contents and exit
-            print(open(source_script, "r").read())
-            sys.exit(0)
-        except (FileNotFoundError, OSError):
-            print("Source file does not exist or permission denied")
-            sys.exit(1)
-
+def check_cooldown_period(source_script: Path, args, logger) -> None:
     # Check cooldown period (skip if --source was given, but we already handled that above)
     if source_script.exists() and not args.force:
         try:
@@ -80,14 +98,6 @@ def main() -> None:
         except OSError:
             # If we can't stat the file, continue with regeneration
             pass
-
-    try:
-        run(shell, cache_dir, args.force, logger)
-    except Exception as e:
-        logger.error(f"Error: {e}", exc_info=True)
-        if args.verbose:
-            print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
 
 
 def run(shell: Shell, cache_dir: Path, force: bool, logger) -> None:
