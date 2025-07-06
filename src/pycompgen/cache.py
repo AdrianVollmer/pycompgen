@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import List
 
-from .models import GeneratedCompletion, Shell
+from .models import GeneratedCompletion
 from .logger import get_logger
 
 
@@ -59,25 +59,6 @@ def get_completion_files(cache_dir: Path) -> List[Path]:
         return []
 
     return [f for f in cache_dir.glob("*.sh") if f.is_file()]
-
-
-def clean_cache(cache_dir: Path, keep_packages: List[str]) -> None:
-    """Clean cache directory, removing completions for packages not in keep_packages."""
-    if not cache_dir.exists():
-        return
-
-    # Include both shell variations
-    keep_files = set()
-    for package in keep_packages:
-        for shell in Shell:
-            keep_files.add(f"{package}.{shell.value}.sh")
-
-    for filepath in cache_dir.glob("*.sh"):
-        if filepath.name not in keep_files and filepath.name != "completions.sh":
-            try:
-                filepath.unlink()
-            except OSError:
-                pass  # Ignore errors when removing files
 
 
 def generate_source_script(cache_dir: Path) -> str:
