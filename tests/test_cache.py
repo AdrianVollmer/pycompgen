@@ -180,7 +180,7 @@ class TestSaveSourceScript:
 
         result = save_source_script(temp_dir, Shell.BASH)
 
-        assert result == temp_dir / "completions.bash.sh"
+        assert result == temp_dir / "__completions__.bash.sh"
         assert result.exists()
 
         content = result.read_text()
@@ -193,7 +193,7 @@ class TestSaveSourceScript:
         """Test source script with empty directory."""
         result = save_source_script(temp_dir, Shell.BASH)
 
-        assert result == temp_dir / "completions.bash.sh"
+        assert result == temp_dir / "__completions__.bash.sh"
         assert result.exists()
 
         content = result.read_text()
@@ -336,4 +336,4 @@ class TestIntegrationWithMockEnv:
         # Test source script generation
         source_script_path = save_source_script(cache_dir, Shell.BASH)
 
-        assert source_script_path == cache_dir / "completions.bash.sh"
+        assert source_script_path == cache_dir / "__completions__.bash.sh"

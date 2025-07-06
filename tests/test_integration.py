@@ -50,7 +50,7 @@ class TestMainWorkflow:
         mock_generate.return_value = mock_completions
 
         # Mock source script path
-        source_script_path = temp_dir / "completions.bash.sh"
+        source_script_path = temp_dir / "__completions__.bash.sh"
         mock_save_source_script.return_value = source_script_path
 
         # Run main function
@@ -113,7 +113,7 @@ class TestMainWorkflow:
         mock_analyze.return_value = []
         mock_generate.return_value = []
 
-        source_script_path = temp_dir / "completions.bash.sh"
+        source_script_path = temp_dir / "__completions__.bash.sh"
         mock_save_source_script.return_value = source_script_path
 
         # Run with verbose flag
@@ -149,7 +149,7 @@ class TestMainWorkflow:
         mock_generate.return_value = []
 
         custom_cache_dir = temp_dir / "custom-cache"
-        source_script_path = custom_cache_dir / "completions.sh"
+        source_script_path = custom_cache_dir / "__completions__.bash.sh"
         mock_save_source_script.return_value = source_script_path
 
         # Run with custom cache dir
@@ -484,7 +484,7 @@ class TestCooldownFeature:
         mock_get_cache_dir.return_value = temp_dir
 
         # Create a recent source script
-        source_script = temp_dir / "completions.bash.sh"
+        source_script = temp_dir / "__completions__.bash.sh"
         source_script.write_text("# test completion")
 
         # Mock current time as 30 seconds after file creation
@@ -620,7 +620,7 @@ class TestCooldownFeature:
                     with patch("pycompgen.save_completions"):
                         with patch("pycompgen.save_source_script") as mock_save_script:
                             mock_save_script.return_value = (
-                                temp_dir / "completions.bash.sh"
+                                temp_dir / "__completions__.bash.sh"
                             )
 
                             with patch(
@@ -649,7 +649,7 @@ class TestCooldownFeature:
         mock_get_cache_dir.return_value = temp_dir
 
         # Create a recent source script
-        source_script = temp_dir / "completions.bash.sh"
+        source_script = temp_dir / "__completions__.bash.sh"
         source_script.write_text("# test completion content")
 
         with patch(
