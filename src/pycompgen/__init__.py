@@ -19,7 +19,7 @@ def main() -> None:
     parser.add_argument(
         "--shell",
         type=str,
-        help="Target shell (default: ${SHELL:-bash}",
+        help="Target shell (default: ${SHELL:-bash})",
     )
     parser.add_argument(
         "--cache-dir",

@@ -9,7 +9,6 @@ besides some select commands:
 
 - uv
 - uvx
-- pipx
 
 ## Installation
 
@@ -50,6 +49,7 @@ completions for the next time.
 
 - `--cache-dir PATH`: Override the default cache directory
 - `--force`: Force regeneration of all completions
+- `--shell`: Target shell (default: ${SHELL:-bash})
 - `--verbose`: Enable detailed output
 - `--source`: Only write the source file contents to stdout and exit
 - `--cooldown-time`: Minimum amount of seconds between regenerations
