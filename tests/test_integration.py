@@ -7,6 +7,7 @@ import tempfile
 import logging
 
 from pycompgen import main
+from pycompgen.models import Shell
 
 
 class TestMainWorkflow:
@@ -49,11 +50,11 @@ class TestMainWorkflow:
         mock_generate.return_value = mock_completions
 
         # Mock source script path
-        source_script_path = temp_dir / "completions.sh"
+        source_script_path = temp_dir / "completions.bash.sh"
         mock_save_source_script.return_value = source_script_path
 
         # Run main function
-        with patch("sys.argv", ["pycompgen"]):
+        with patch("sys.argv", ["pycompgen", "--shel", "bash"]):
             main()
 
         # Verify workflow
@@ -67,7 +68,8 @@ class TestMainWorkflow:
         mock_save_completions.assert_called_once_with(
             mock_completions, temp_dir, force=False
         )
-        mock_save_source_script.assert_called_once_with(temp_dir)
+        # Should be called with temp_dir and Shell.BASH (default shell)
+        mock_save_source_script.assert_called_once_with(temp_dir, Shell.BASH)
 
         # Verify logging
         assert mock_logger.info.call_count >= 4
@@ -111,7 +113,7 @@ class TestMainWorkflow:
         mock_analyze.return_value = []
         mock_generate.return_value = []
 
-        source_script_path = temp_dir / "completions.sh"
+        source_script_path = temp_dir / "completions.bash.sh"
         mock_save_source_script.return_value = source_script_path
 
         # Run with verbose flag
@@ -185,7 +187,7 @@ class TestMainWorkflow:
         mock_detect.return_value = []
         mock_analyze.return_value = []
         mock_generate.return_value = []
-        mock_save_source_script.return_value = temp_dir / "completions.sh"
+        mock_save_source_script.return_value = temp_dir / "completions.bash.sh"
 
         # Run with force flag
         with patch("sys.argv", ["pycompgen", "--force"]):
@@ -333,7 +335,7 @@ class TestEndToEndWorkflow:
         assert len(completion_files) >= 1  # At least the source script
 
         # Check that source script was created
-        source_script = temp_dir / "completions.sh"
+        source_script = temp_dir / "completions.bash.sh"
         assert source_script.exists()
 
     @patch("pycompgen.generators.generate_hardcoded_completion")
@@ -482,14 +484,16 @@ class TestCooldownFeature:
         mock_get_cache_dir.return_value = temp_dir
 
         # Create a recent source script
-        source_script = temp_dir / "completions.sh"
+        source_script = temp_dir / "completions.bash.sh"
         source_script.write_text("# test completion")
 
         # Mock current time as 30 seconds after file creation
         file_mtime = source_script.stat().st_mtime
         mock_time.return_value = file_mtime + 30  # 30 seconds later
 
-        with patch("sys.argv", ["pycompgen", "--cooldown-time", "60"]):
+        with patch(
+            "sys.argv", ["pycompgen", "--shell", "bash", "--cooldown-time", "60"]
+        ):
             with pytest.raises(SystemExit) as exc_info:
                 main()
 
@@ -531,10 +535,10 @@ class TestCooldownFeature:
         mock_detect.return_value = []
         mock_analyze.return_value = []
         mock_generate.return_value = []
-        mock_save_source_script.return_value = temp_dir / "completions.sh"
+        mock_save_source_script.return_value = temp_dir / "completions.bash.sh"
 
         # Create an old source script
-        source_script = temp_dir / "completions.sh"
+        source_script = temp_dir / "completions.bash.sh"
         source_script.write_text("# old completion")
 
         # Mock current time as 90 seconds after file creation (past 60s cooldown)
@@ -578,10 +582,10 @@ class TestCooldownFeature:
         mock_detect.return_value = []
         mock_analyze.return_value = []
         mock_generate.return_value = []
-        mock_save_source_script.return_value = temp_dir / "completions.sh"
+        mock_save_source_script.return_value = temp_dir / "completions.bash.sh"
 
         # Create a very recent source script
-        source_script = temp_dir / "completions.sh"
+        source_script = temp_dir / "completions.bash.sh"
         source_script.write_text("# recent completion")
 
         # Mock current time as 10 seconds after file creation (well within cooldown)
@@ -615,10 +619,19 @@ class TestCooldownFeature:
                     mock_generate.return_value = []
                     with patch("pycompgen.save_completions"):
                         with patch("pycompgen.save_source_script") as mock_save_script:
-                            mock_save_script.return_value = temp_dir / "completions.sh"
+                            mock_save_script.return_value = (
+                                temp_dir / "completions.bash.sh"
+                            )
 
                             with patch(
-                                "sys.argv", ["pycompgen", "--cooldown-time", "60"]
+                                "sys.argv",
+                                [
+                                    "pycompgen",
+                                    "--shell",
+                                    "bash",
+                                    "--cooldown-time",
+                                    "60",
+                                ],
                             ):
                                 main()
 
@@ -636,10 +649,13 @@ class TestCooldownFeature:
         mock_get_cache_dir.return_value = temp_dir
 
         # Create a recent source script
-        source_script = temp_dir / "completions.sh"
+        source_script = temp_dir / "completions.bash.sh"
         source_script.write_text("# test completion content")
 
-        with patch("sys.argv", ["pycompgen", "--source", "--cooldown-time", "60"]):
+        with patch(
+            "sys.argv",
+            ["pycompgen", "--shell", "bash", "--source", "--cooldown-time", "60"],
+        ):
             with pytest.raises(SystemExit) as exc_info:
                 main()
 

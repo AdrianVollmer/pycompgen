@@ -53,8 +53,9 @@ def main() -> None:
     # Set up logging
     logger = setup_logging(args.verbose)
 
+    shell = Shell(args.shell or os.path.basename(os.environ.get("SHELL", "bash")))
     cache_dir = args.cache_dir or get_cache_dir()
-    source_script = get_source_path(cache_dir)
+    source_script = get_source_path(cache_dir, shell)
 
     if args.source:
         try:
@@ -62,7 +63,8 @@ def main() -> None:
             print(open(source_script, "r").read())
             sys.exit(0)
         except (FileNotFoundError, OSError):
-            pass
+            print("Source file does not exist or permission denied")
+            sys.exit(1)
 
     # Check cooldown period (skip if --source was given, but we already handled that above)
     if source_script.exists() and not args.force:
@@ -80,9 +82,7 @@ def main() -> None:
             pass
 
     try:
-        shell = Shell(args.shell or os.path.basename(os.environ.get("SHELL", "bash")))
         run(shell, cache_dir, args.force, logger)
-
     except Exception as e:
         logger.error(f"Error: {e}", exc_info=True)
         if args.verbose:
@@ -110,7 +110,7 @@ def run(shell: Shell, cache_dir: Path, force: bool, logger) -> None:
     save_completions(completions, cache_dir, force=force)
 
     # Generate source script
-    source_script = save_source_script(cache_dir)
+    source_script = save_source_script(cache_dir, shell)
 
     logger.info(f"Completions saved to {cache_dir}")
     logger.info(f"Source script: {source_script}")
