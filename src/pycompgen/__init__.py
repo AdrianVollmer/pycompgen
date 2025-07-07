@@ -28,7 +28,10 @@ def main() -> None:
             print(open(source_script, "r").read())
             sys.exit(0)
         except (FileNotFoundError, OSError):
-            print("Source file does not exist or permission denied")
+            print(
+                "Source file does not exist or permission denied",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
     check_cooldown_period(source_script, args, logger)
