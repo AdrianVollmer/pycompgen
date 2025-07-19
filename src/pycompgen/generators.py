@@ -41,7 +41,7 @@ def generate_completions(
 
     # Log summary of errors if any occurred
     if _completion_errors:
-        logger.warning(
+        logger.info(
             f"Completion generation failed for {len(_completion_errors)} commands."
         )
 
