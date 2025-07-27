@@ -7,7 +7,7 @@ from pathlib import Path
 from .detectors import detect_packages
 from .analyzers import analyze_packages
 from .generators import generate_completions
-from .cache import save_completions, get_cache_dir, save_source_script, get_source_path
+from .cache import save_completions, get_cache_dir, read_completion_files
 from .logger import setup_logging
 from .models import Shell
 
@@ -22,12 +22,11 @@ def main() -> None:
         args.shell or os.path.basename(os.environ.get("PYCOMPGEN_SHELL", "bash"))
     )
     cache_dir = args.cache_dir or get_cache_dir()
-    source_script = get_source_path(cache_dir, shell)
 
     if args.source:
         try:
-            # Print the source file contents and exit
-            print(open(source_script, "r").read())
+            completion_source = read_completion_files(shell)
+            print(completion_source)
             sys.exit(0)
         except (FileNotFoundError, OSError):
             print(
@@ -36,7 +35,7 @@ def main() -> None:
             )
             sys.exit(1)
 
-    check_cooldown_period(source_script, args, logger)
+    check_cooldown_period(shell, cache_dir, args, logger)
 
     try:
         run(shell, cache_dir, args.force, logger)
@@ -88,20 +87,38 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def check_cooldown_period(source_script: Path, args, logger) -> None:
-    # Check cooldown period (skip if --source was given, but we already handled that above)
-    if source_script.exists() and not args.force:
+def check_cooldown_period(shell: Shell, cache_dir: Path, args, logger) -> None:
+    # Check cooldown period by looking at the most recent completion file
+    if not args.force:
         try:
-            script_age = time.time() - source_script.stat().st_mtime
-            if script_age < args.cooldown_time:
-                remaining = args.cooldown_time - script_age
-                logger.info(
-                    f"Completions are fresh (last generated {script_age:.1f}s ago). "
-                    f"Skipping regeneration. Use --force to override or wait {remaining:.1f}s."
-                )
-                sys.exit(0)
+            # Create shell-specific directory path
+            if shell == Shell.BASH:
+                shell_dir = cache_dir / "pycompgen" / "bash"
+                pattern = "*.sh"
+            elif shell == Shell.ZSH:
+                shell_dir = cache_dir / "pycompgen" / "zsh"
+                pattern = "*.zsh"
+            elif shell == Shell.FISH:
+                shell_dir = cache_dir / "fish" / "generated_completions"
+                pattern = "*.fish"
+            else:
+                return  # Unknown shell, skip cooldown check
+
+            if shell_dir.exists():
+                completion_files = list(shell_dir.glob(pattern))
+                if completion_files:
+                    # Get the most recent file
+                    most_recent = max(completion_files, key=lambda f: f.stat().st_mtime)
+                    script_age = time.time() - most_recent.stat().st_mtime
+                    if script_age < args.cooldown_time:
+                        remaining = args.cooldown_time - script_age
+                        logger.info(
+                            f"Completions are fresh (last generated {script_age:.1f}s ago). "
+                            f"Skipping regeneration. Use --force to override or wait {remaining:.1f}s."
+                        )
+                        sys.exit(0)
         except OSError:
-            # If we can't stat the file, continue with regeneration
+            # If we can't stat files, continue with regeneration
             pass
 
 
@@ -124,11 +141,7 @@ def run(shell: Shell, cache_dir: Path, force: bool, logger) -> None:
     # Save to cache
     save_completions(completions, cache_dir, force=force)
 
-    # Generate source script
-    source_script = save_source_script(cache_dir, shell)
-
     logger.info(f"Completions saved to {cache_dir}")
-    logger.info(f"Source script: {source_script}")
 
 
 if __name__ == "__main__":
