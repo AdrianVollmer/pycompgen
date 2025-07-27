@@ -3,7 +3,7 @@
 Automatically generate shell completions for Python tools installed via
 uv and pipx.
 
-Currently, only zsh and bash on Linux are supported. Also, only Python
+Currently, bash, zsh, and fish on Linux are supported. Also, only Python
 tools that use the `click` or `argcomplete` libraries are supported,
 besides some select commands:
 
@@ -37,8 +37,11 @@ The tool will:
 Add the source script to your shell config:
 
 ``` bash
-# Add to ~/.bashrc or ~/.zshrc
+# For bash and zsh - add to ~/.bashrc or ~/.zshrc
 source <(pycompgen --source) ; (pycompgen &)
+
+# For fish - add to ~/.config/fish/config.fish
+pycompgen --source | source ; pycompgen &
 ```
 
 This will load the generated shell completions and generate new
@@ -48,7 +51,8 @@ completions for the next time.
 
 - `--cache-dir PATH`: Override the default cache directory
 - `--force`: Force regeneration of all completions
-- `--shell`: Target shell (default: ${SHELL:-bash})
+- `--shell`: Target shell - bash, zsh, or fish (default:
+  \${SHELL:-bash})
 - `--verbose`: Enable detailed output
 - `--source`: Only write the source file contents to stdout and exit
 - `--cooldown-time`: Minimum amount of seconds between regenerations

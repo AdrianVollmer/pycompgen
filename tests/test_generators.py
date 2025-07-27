@@ -8,7 +8,7 @@ from pycompgen.generators import (
     generate_click_completion,
     generate_argcomplete_completion,
     generate_click_shell_completion,
-    generate_argcomplete_bash_completion,
+    generate_argcomplete_shell_completion,
     _run_completion_command,
     get_completion_errors,
     _completion_errors,
@@ -222,10 +222,10 @@ class TestGenerateClickCompletion:
 class TestGenerateArgcompleteCompletion:
     """Test argcomplete completion generation."""
 
-    @patch("pycompgen.generators.generate_argcomplete_bash_completion")
-    def test_generate_argcomplete_completion_success(self, mock_generate_bash):
+    @patch("pycompgen.generators.generate_argcomplete_shell_completion")
+    def test_generate_argcomplete_completion_success(self, mock_generate_shell):
         """Test successful argcomplete completion generation."""
-        mock_generate_bash.return_value = "bash completion content"
+        mock_generate_shell.return_value = "bash completion content"
 
         mock_installed_package = Mock(spec=InstalledPackage)
         mock_installed_package.name = "test-package"
@@ -247,10 +247,10 @@ class TestGenerateArgcompleteCompletion:
         assert bash_completion.shell == Shell.BASH
         assert "bash completion content" in bash_completion.content
 
-    @patch("pycompgen.generators.generate_argcomplete_bash_completion")
-    def test_generate_argcomplete_completion_failure(self, mock_generate_bash):
+    @patch("pycompgen.generators.generate_argcomplete_shell_completion")
+    def test_generate_argcomplete_completion_failure(self, mock_generate_shell):
         """Test argcomplete completion generation failure."""
-        mock_generate_bash.return_value = None
+        mock_generate_shell.return_value = None
 
         mock_installed_package = Mock(spec=InstalledPackage)
         mock_installed_package.name = "test-package"
@@ -392,11 +392,11 @@ class TestGenerateClickShellCompletion:
             generate_click_shell_completion("test-command", "invalid-shell")
 
 
-class TestGenerateArgcompleteCompletionBash:
-    """Test argcomplete completion generation."""
+class TestGenerateArgcompleteShellCompletion:
+    """Test argcomplete shell completion generation."""
 
     @patch("pycompgen.generators._run_completion_command")
-    def test_generate_argcomplete_bash_completion(self, mock_run):
+    def test_generate_argcomplete_shell_completion_bash(self, mock_run):
         """Test argcomplete bash completion generation."""
         mock_run.return_value = "argcomplete completion output"
 
@@ -415,17 +415,56 @@ class TestGenerateArgcompleteCompletionBash:
         mock_package.path = mock_path
         mock_completion_package.package = mock_package
 
-        result = generate_argcomplete_bash_completion(
-            "test-command", mock_completion_package
+        result = generate_argcomplete_shell_completion(
+            "test-command", mock_completion_package, Shell.BASH
         )
 
         assert result == "argcomplete completion output"
         mock_run.assert_called_once_with(
-            ["/fake/path/bin/register-python-argcomplete", "test-command"]
+            [
+                "/fake/path/bin/register-python-argcomplete",
+                "--shell",
+                "bash",
+                "test-command",
+            ]
         )
 
     @patch("pycompgen.generators._run_completion_command")
-    def test_generate_argcomplete_bash_completion_failure(self, mock_run):
+    def test_generate_argcomplete_shell_completion_fish(self, mock_run):
+        """Test argcomplete fish completion generation."""
+        mock_run.return_value = "argcomplete completion output"
+
+        # Mock the package with a path that has a bin directory
+        mock_completion_package = Mock(spec=CompletionPackage)
+        mock_package = Mock()
+        # Mock pathlib.Path behavior for package.path / "bin" / "register-python-argcomplete"
+        mock_path = Mock()
+        mock_path.__truediv__ = Mock(
+            return_value=Mock(
+                __truediv__=Mock(
+                    return_value="/fake/path/bin/register-python-argcomplete"
+                )
+            )
+        )
+        mock_package.path = mock_path
+        mock_completion_package.package = mock_package
+
+        result = generate_argcomplete_shell_completion(
+            "test-command", mock_completion_package, Shell.FISH
+        )
+
+        assert result == "argcomplete completion output"
+        mock_run.assert_called_once_with(
+            [
+                "/fake/path/bin/register-python-argcomplete",
+                "--shell",
+                "fish",
+                "test-command",
+            ]
+        )
+
+    @patch("pycompgen.generators._run_completion_command")
+    def test_generate_argcomplete_shell_completion_failure(self, mock_run):
         """Test argcomplete completion generation failure."""
         mock_run.return_value = None
 
@@ -444,8 +483,8 @@ class TestGenerateArgcompleteCompletionBash:
         mock_package.path = mock_path
         mock_completion_package.package = mock_package
 
-        result = generate_argcomplete_bash_completion(
-            "test-command", mock_completion_package
+        result = generate_argcomplete_shell_completion(
+            "test-command", mock_completion_package, Shell.BASH
         )
 
         assert result is None

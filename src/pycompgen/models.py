@@ -18,6 +18,7 @@ class CompletionType(Enum):
 class Shell(Enum):
     BASH = "bash"
     ZSH = "zsh"
+    FISH = "fish"
 
 
 @dataclass

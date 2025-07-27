@@ -15,10 +15,12 @@ HARDCODED_COMPLETION_GENERATORS = {
     "uv": {
         Shell.BASH: ["uv", "generate-shell-completion", "bash"],
         Shell.ZSH: ["uv", "generate-shell-completion", "zsh"],
+        Shell.FISH: ["uv", "generate-shell-completion", "fish"],
     },
     "uvx": {
         Shell.BASH: ["uvx", "--generate-shell-completion", "bash"],
         Shell.ZSH: ["uvx", "--generate-shell-completion", "zsh"],
+        Shell.FISH: ["uvx", "--generate-shell-completion", "fish"],
     },
 }
 
@@ -94,13 +96,15 @@ def generate_click_completion(
 def generate_argcomplete_completion(
     package: CompletionPackage, shell: Shell
 ) -> List[GeneratedCompletion]:
-    """Generate argcomplete completion scripts for bash and zsh (content is identical)."""
+    """Generate argcomplete completion scripts for all supported shells."""
     completion_parts = []
 
     for command in package.commands:
-        bash_completion = generate_argcomplete_bash_completion(command, package)
-        if bash_completion:
-            completion_parts.append(f"# Completion for {command}\n{bash_completion}")
+        shell_completion = generate_argcomplete_shell_completion(
+            command, package, shell
+        )
+        if shell_completion:
+            completion_parts.append(f"# Completion for {command}\n{shell_completion}")
 
     if not completion_parts:
         return []
@@ -108,7 +112,6 @@ def generate_argcomplete_completion(
     # Combine all completions
     content = "\n".join(completion_parts)
 
-    # Generate for either bash or zsh since argcomplete works with both
     return [
         GeneratedCompletion(
             package_name=package.package.name,
@@ -201,12 +204,12 @@ def generate_click_shell_completion(command: str, shell: Shell) -> Optional[str]
     return _run_completion_command([command], env=env)
 
 
-def generate_argcomplete_bash_completion(
-    command: str, package: CompletionPackage
+def generate_argcomplete_shell_completion(
+    command: str, package: CompletionPackage, shell: Shell
 ) -> Optional[str]:
-    """Generate bash completion script for an argcomplete command."""
+    """Generate shell completion script for an argcomplete command."""
     cmd = str(package.package.path / "bin" / "register-python-argcomplete")
-    return _run_completion_command([cmd, command])
+    return _run_completion_command([cmd, "--shell", shell.value, command])
 
 
 def get_completion_errors() -> List[str]:
