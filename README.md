@@ -7,8 +7,8 @@ Currently, bash, zsh, and fish on Linux are supported. Also, only Python
 tools that use the `click` or `argcomplete` libraries are supported,
 besides some select commands:
 
-- uv
-- uvx
+- `uv`
+- `uvx`
 
 ## Installation
 
@@ -55,7 +55,7 @@ completions for the next time.
 - `--cache-dir PATH`: Override the default cache directory
 - `--force`: Force regeneration of all completions
 - `--shell`: Target shell - bash, zsh, or fish (default:
-  \${SHELL:-bash})
+  \${PYCOMPGEN_SHELL:-bash})
 - `--verbose`: Enable detailed output
 - `--source`: Only write the source file contents to stdout and exit
 - `--cooldown-time`: Minimum amount of seconds between regenerations
