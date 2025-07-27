@@ -37,11 +37,14 @@ The tool will:
 Add the source script to your shell config:
 
 ``` bash
-# For bash and zsh - add to ~/.bashrc or ~/.zshrc
+# For bash: - add to ~/.bashrc:
 source <(pycompgen --source) ; (pycompgen &)
 
+# For zsh: - add to ~/.zshrc:
+source <(pycompgen --shell zsh --source) ; (pycompgen --shell zsh &)
+
 # For fish - add to ~/.config/fish/config.fish
-pycompgen --source | source ; pycompgen &
+pycompgen --shell fish --source | source ; pycompgen --shell fish &
 ```
 
 This will load the generated shell completions and generate new

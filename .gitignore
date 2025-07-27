@@ -4,3 +4,4 @@ __pycache__
 _dev
 .claude/
 dist/
+_version.py

@@ -1,6 +1,6 @@
 [project]
 name = "pycompgen"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Generate shell completions automatically"
 readme = "README.md"
 authors = [
@@ -13,7 +13,7 @@ dependencies = []
 pycompgen = "pycompgen:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
@@ -23,3 +23,12 @@ dev = [
     "pytest>=8.0.0",
     "ruff>=0.12.2",
 ]
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "_version.py"
