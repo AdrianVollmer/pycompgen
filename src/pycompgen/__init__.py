@@ -18,7 +18,9 @@ def main() -> None:
     # Set up logging
     logger = setup_logging(args.verbose)
 
-    shell = Shell(args.shell or os.path.basename(os.environ.get("SHELL", "bash")))
+    shell = Shell(
+        args.shell or os.path.basename(os.environ.get("PYCOMPGEN_SHELL", "bash"))
+    )
     cache_dir = args.cache_dir or get_cache_dir()
     source_script = get_source_path(cache_dir, shell)
 
@@ -52,7 +54,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--shell",
         type=str,
-        help="Target shell (default: ${SHELL:-bash})",
+        help="Target shell (default: ${PYCOMPGEN_SHELL:-bash})",
     )
     parser.add_argument(
         "--cache-dir",
