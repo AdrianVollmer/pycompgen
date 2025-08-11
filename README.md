@@ -42,9 +42,6 @@ source <(pycompgen --source) ; (pycompgen &)
 
 # For zsh: - add to ~/.zshrc:
 source <(pycompgen --shell zsh --source) ; (pycompgen --shell zsh &)
-
-# For fish: - add to ~/.config/fish/config.fish:
-pycompgen --shell fish &; disown
 ```
 
 This will load the generated shell completions and generate new
