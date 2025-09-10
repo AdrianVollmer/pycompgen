@@ -1,4 +1,3 @@
-import re
 import subprocess
 from pathlib import Path
 from typing import List, Optional
@@ -44,15 +43,12 @@ def detect_completion_type(package: InstalledPackage) -> Optional[CompletionType
     if not python_path:
         return None
 
-    if not package.package_path:
-        return None
-
     # Check for click
-    if has_dependency(python_path, package.package_path, "click"):
+    if package.has_dependency("click"):
         return CompletionType.CLICK
 
     # Check for argcomplete
-    if has_dependency(python_path, package.package_path, "argcomplete"):
+    if package.has_dependency("argcomplete"):
         return CompletionType.ARGCOMPLETE
 
     return None
@@ -70,44 +66,6 @@ def get_python_path(package: InstalledPackage) -> Optional[Path]:
         return None
 
     return python_path if python_path.exists() else None
-
-
-def has_dependency(python_path: Path, package_dir: Path, dependency: str) -> bool:
-    """Check if a dependency is directly imported by the package."""
-    # For testing compatibility, first check if we can do a simple import test
-    try:
-        result = subprocess.run(
-            [str(python_path), "-c", f"import {dependency}"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-
-        # If the import fails, the dependency is not available
-        if result.returncode != 0:
-            return False
-
-        # If the import succeeds, check if it's a direct dependency
-        # by looking at the actual package directory for import statements
-        import_pattern = re.compile(
-            rf"(?:^|\n)(?:import\s+{re.escape(dependency)}(?:\s|$|;)|from\s+{re.escape(dependency)}(?:\s|$|\.))",
-            re.MULTILINE,
-        )
-
-        for py_file in package_dir.rglob("*.py"):
-            try:
-                with open(py_file, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read()
-                    if import_pattern.search(content):
-                        return True
-            except (OSError, UnicodeDecodeError):
-                continue
-
-        # If no direct imports found, it's likely a transitive dependency
-        return False
-
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
-        return False
 
 
 def find_package_commands(package: InstalledPackage) -> List[str]:
