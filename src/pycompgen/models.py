@@ -42,5 +42,5 @@ class GeneratedCompletion:
     package_name: str
     completion_type: CompletionType
     content: str
-    commands: List[str]
+    command: str
     shell: Shell
