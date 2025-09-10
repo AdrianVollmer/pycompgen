@@ -1,5 +1,4 @@
 from unittest.mock import Mock, patch
-import subprocess
 
 from pycompgen.analyzers import (
     analyze_packages,
@@ -108,19 +107,18 @@ class TestDetectCompletionType:
         mock_package = Mock(spec=InstalledPackage)
         mock_package.path = package_base
         mock_package.name = "test-package"
-        mock_package.package_path = package_dir
 
         mock_python_path = tmp_path / "fake" / "python"
         mock_python_path.parent.mkdir(parents=True)
         mock_python_path.touch()
         mock_get_python.return_value = mock_python_path
-        mock_has_dep.side_effect = lambda python_path, package_path, dep: dep == "click"
+        mock_has_dep.side_effect = lambda package, dep: dep == "click"
         mock_find_commands.return_value = ["regular-command"]  # No hardcoded commands
 
         result = detect_completion_type(mock_package)
 
         assert result == CompletionType.CLICK
-        mock_has_dep.assert_called_with(mock_python_path, package_dir, "click")
+        mock_has_dep.assert_called_with(mock_package, "click")
 
     @patch("pycompgen.analyzers.find_package_commands")
     @patch("pycompgen.analyzers.has_dependency")
@@ -139,14 +137,13 @@ class TestDetectCompletionType:
         mock_package = Mock(spec=InstalledPackage)
         mock_package.path = package_base
         mock_package.name = "test-package"
-        mock_package.package_path = package_dir
 
         mock_python_path = tmp_path / "fake" / "python"
         mock_python_path.parent.mkdir(parents=True)
         mock_python_path.touch()
         mock_get_python.return_value = mock_python_path
         mock_has_dep.side_effect = (
-            lambda python_path, package_path, dep: dep == "argcomplete"
+            lambda package, dep: dep == "argcomplete"
         )
         mock_find_commands.return_value = ["regular-command"]  # No hardcoded commands
 
@@ -172,7 +169,6 @@ class TestDetectCompletionType:
         mock_package = Mock(spec=InstalledPackage)
         mock_package.path = package_base
         mock_package.name = "test-package"
-        mock_package.package_path = package_dir
 
         mock_python_path = tmp_path / "fake" / "python"
         mock_python_path.parent.mkdir(parents=True)
@@ -201,7 +197,6 @@ class TestDetectCompletionType:
         mock_package = Mock(spec=InstalledPackage)
         mock_package.path = package_base
         mock_package.name = "test-package"
-        mock_package.package_path = package_dir
 
         mock_get_python.return_value = None
         mock_find_commands.return_value = ["regular-command"]  # No hardcoded commands
@@ -266,70 +261,112 @@ class TestGetPythonPath:
 class TestHasDependency:
     """Test dependency detection."""
 
-    @patch("subprocess.run")
-    def test_has_dependency_success(self, mock_run, tmp_path):
+    def test_has_dependency_success(self, tmp_path):
         """Test successful dependency detection."""
-        mock_run.return_value = Mock(returncode=0)
-        python_path = tmp_path / "fake" / "python"
-        python_path.parent.mkdir(parents=True)
-        python_path.touch()
-        package_dir = tmp_path / "package_dir"
-        package_dir.mkdir()
-        # Create a test file that imports click
-        test_file = package_dir / "test.py"
-        test_file.write_text("import click\n")
+        # Create package structure with METADATA
+        package_base = tmp_path / "test-package"
+        metadata_dir = package_base / "lib" / "python3.11" / "site-packages" / "test_package-1.0.0-info"
+        metadata_dir.mkdir(parents=True)
+        
+        metadata_file = metadata_dir / "METADATA"
+        metadata_content = """Name: test-package
+Version: 1.0.0
+Requires-Dist: click>=7.0
+Requires-Dist: requests>=2.25.0
 
-        result = has_dependency(python_path, package_dir, "click")
+This is the package description."""
+        metadata_file.write_text(metadata_content)
+
+        mock_package = Mock(spec=InstalledPackage)
+        mock_package.name = "test-package"
+        mock_package.path = package_base
+
+        result = has_dependency(mock_package, "click")
 
         assert result is True
-        mock_run.assert_called_once_with(
-            [str(python_path), "-c", "import click"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
 
-    @patch("subprocess.run")
-    def test_has_dependency_import_error(self, mock_run, tmp_path):
-        """Test when dependency import fails."""
-        mock_run.return_value = Mock(returncode=1)
-        python_path = tmp_path / "fake" / "python"
-        python_path.parent.mkdir(parents=True)
-        python_path.touch()
-        package_dir = tmp_path / "package_dir"
-        package_dir.mkdir()
+    def test_has_dependency_not_found(self, tmp_path):
+        """Test when dependency is not found."""
+        # Create package structure with METADATA
+        package_base = tmp_path / "test-package"
+        metadata_dir = package_base / "lib" / "python3.11" / "site-packages" / "test_package-1.0.0-info"
+        metadata_dir.mkdir(parents=True)
+        
+        metadata_file = metadata_dir / "METADATA"
+        metadata_content = """Name: test-package
+Version: 1.0.0
+Requires-Dist: requests>=2.25.0
 
-        result = has_dependency(python_path, package_dir, "nonexistent")
+This is the package description."""
+        metadata_file.write_text(metadata_content)
 
-        assert result is False
+        mock_package = Mock(spec=InstalledPackage)
+        mock_package.name = "test-package"
+        mock_package.path = package_base
 
-    @patch("subprocess.run")
-    def test_has_dependency_timeout(self, mock_run, tmp_path):
-        """Test when dependency check times out."""
-        mock_run.side_effect = subprocess.TimeoutExpired(cmd=["python"], timeout=5)
-        python_path = tmp_path / "fake" / "python"
-        python_path.parent.mkdir(parents=True)
-        python_path.touch()
-        package_dir = tmp_path / "package_dir"
-        package_dir.mkdir()
-
-        result = has_dependency(python_path, package_dir, "click")
+        result = has_dependency(mock_package, "click")
 
         assert result is False
 
-    @patch("subprocess.run")
-    def test_has_dependency_process_error(self, mock_run, tmp_path):
-        """Test when subprocess fails."""
-        mock_run.side_effect = subprocess.CalledProcessError(1, ["python"])
-        python_path = tmp_path / "fake" / "python"
-        python_path.parent.mkdir(parents=True)
-        python_path.touch()
-        package_dir = tmp_path / "package_dir"
-        package_dir.mkdir()
+    def test_has_dependency_no_metadata_dir(self, tmp_path):
+        """Test when metadata directory is not found."""
+        package_base = tmp_path / "test-package"
+        package_base.mkdir()
 
-        result = has_dependency(python_path, package_dir, "click")
+        mock_package = Mock(spec=InstalledPackage)
+        mock_package.name = "test-package"
+        mock_package.path = package_base
+
+        result = has_dependency(mock_package, "click")
 
         assert result is False
+
+    def test_has_dependency_with_version_constraints(self, tmp_path):
+        """Test dependency detection with version constraints."""
+        # Create package structure with METADATA
+        package_base = tmp_path / "test-package"
+        metadata_dir = package_base / "lib" / "python3.11" / "site-packages" / "test_package-1.0.0-info"
+        metadata_dir.mkdir(parents=True)
+        
+        metadata_file = metadata_dir / "METADATA"
+        metadata_content = """Name: test-package
+Version: 1.0.0
+Requires-Dist: click>=7.0,<9.0
+Requires-Dist: requests>=2.25.0; python_version>="3.7"
+
+This is the package description."""
+        metadata_file.write_text(metadata_content)
+
+        mock_package = Mock(spec=InstalledPackage)
+        mock_package.name = "test-package"
+        mock_package.path = package_base
+
+        result = has_dependency(mock_package, "click")
+
+        assert result is True
+
+    def test_has_dependency_hyphen_to_underscore_conversion(self, tmp_path):
+        """Test package name conversion from hyphen to underscore."""
+        # Create package structure with METADATA for package with hyphen in name
+        package_base = tmp_path / "my-test-package"
+        metadata_dir = package_base / "lib" / "python3.11" / "site-packages" / "my_test_package-1.0.0-info"
+        metadata_dir.mkdir(parents=True)
+        
+        metadata_file = metadata_dir / "METADATA"
+        metadata_content = """Name: my-test-package
+Version: 1.0.0
+Requires-Dist: click>=7.0
+
+This is the package description."""
+        metadata_file.write_text(metadata_content)
+
+        mock_package = Mock(spec=InstalledPackage)
+        mock_package.name = "my-test-package"
+        mock_package.path = package_base
+
+        result = has_dependency(mock_package, "click")
+
+        assert result is True
 
 
 class TestFindPackageCommands:
