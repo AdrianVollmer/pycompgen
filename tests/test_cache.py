@@ -51,14 +51,14 @@ class TestSaveCompletions:
                 package_name="test-package",
                 completion_type=CompletionType.CLICK,
                 content="test completion content",
-                commands=["test-command"],
+                command="test-command",
                 shell=Shell.BASH,
             ),
             GeneratedCompletion(
                 package_name="another-package",
                 completion_type=CompletionType.ARGCOMPLETE,
                 content="another completion content",
-                commands=["another-command"],
+                command="another-command",
                 shell=Shell.ZSH,
             ),
         ]
@@ -68,15 +68,15 @@ class TestSaveCompletions:
             save_completions(completions, temp_dir)
 
             # Check that files were created in shell-specific directories
-            assert (temp_dir / "pycompgen" / "bash" / "test-package.sh").exists()
-            assert (temp_dir / "pycompgen" / "zsh" / "another-package.zsh").exists()
+            assert (temp_dir / "pycompgen" / "bash" / "test-command.sh").exists()
+            assert (temp_dir / "pycompgen" / "zsh" / "another-command.zsh").exists()
 
             # Check content
-            content1 = (temp_dir / "pycompgen" / "bash" / "test-package.sh").read_text()
+            content1 = (temp_dir / "pycompgen" / "bash" / "test-command.sh").read_text()
             assert "test completion content" in content1
 
             content2 = (
-                temp_dir / "pycompgen" / "zsh" / "another-package.zsh"
+                temp_dir / "pycompgen" / "zsh" / "another-command.zsh"
             ).read_text()
             assert "another completion content" in content2
 
@@ -90,7 +90,7 @@ class TestSaveCompletions:
                 package_name="test-package",
                 completion_type=CompletionType.CLICK,
                 content="test content",
-                commands=["test-command"],
+                command="test-command",
                 shell=Shell.BASH,
             )
         ]
@@ -100,14 +100,14 @@ class TestSaveCompletions:
             save_completions(completions, cache_dir)
 
             assert cache_dir.exists()
-            assert (cache_dir / "pycompgen" / "bash" / "test-package.sh").exists()
+            assert (cache_dir / "pycompgen" / "bash" / "test-command.sh").exists()
 
     def test_save_completions_no_overwrite_without_force(self, temp_dir):
         """Test that existing files are not overwritten without force."""
         # Create the shell-specific directory and file structure
         bash_dir = temp_dir / "pycompgen" / "bash"
         bash_dir.mkdir(parents=True)
-        completion_file = bash_dir / "test-package.sh"
+        completion_file = bash_dir / "test-command.sh"
         completion_file.write_text("original content")
         original_mtime = completion_file.stat().st_mtime
 
@@ -116,7 +116,7 @@ class TestSaveCompletions:
                 package_name="test-package",
                 completion_type=CompletionType.CLICK,
                 content="new content",
-                commands=["test-command"],
+                command="test-command",
                 shell=Shell.BASH,
             )
         ]
@@ -134,7 +134,7 @@ class TestSaveCompletions:
         # Create the shell-specific directory and file structure
         bash_dir = temp_dir / "pycompgen" / "bash"
         bash_dir.mkdir(parents=True)
-        completion_file = bash_dir / "test-package.sh"
+        completion_file = bash_dir / "test-command.sh"
         completion_file.write_text("original content")
 
         completions = [
@@ -142,7 +142,7 @@ class TestSaveCompletions:
                 package_name="test-package",
                 completion_type=CompletionType.CLICK,
                 content="new content",
-                commands=["test-command"],
+                command="test-command",
                 shell=Shell.BASH,
             )
         ]
@@ -174,7 +174,7 @@ class TestSaveCompletions:
                 package_name="test-package",
                 completion_type=CompletionType.CLICK,
                 content="test content",
-                commands=["test-command"],
+                command="test-command",
                 shell=Shell.BASH,
             )
         ]
@@ -210,7 +210,7 @@ class TestIntegrationWithMockEnv:
                                 package_name="test-package",
                                 completion_type=CompletionType.CLICK,
                                 content="test completion content",
-                                commands=["test-command"],
+                                command="test-command",
                                 shell=Shell.BASH,
                             )
 

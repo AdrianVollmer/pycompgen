@@ -69,7 +69,7 @@ def save_completion(
     shell_dir.mkdir(parents=True, exist_ok=True)
 
     # Create filename
-    filename = f"{completion.package_name}{extension}"
+    filename = f"{completion.command}{extension}"
     filepath = shell_dir / filename
 
     # Check if file exists and force is not set

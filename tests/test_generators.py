@@ -175,7 +175,7 @@ class TestGenerateClickCompletion:
             completion = result[0]
             assert completion.package_name == "test-package"
             assert completion.completion_type == CompletionType.CLICK
-            assert completion.commands == ["test-command"]
+            assert completion.command == "test-command"
             assert completion.shell == shell
             assert "completion content" in completion.content
 
@@ -243,7 +243,7 @@ class TestGenerateArgcompleteCompletion:
         bash_completion = result[0]
         assert bash_completion.package_name == "test-package"
         assert bash_completion.completion_type == CompletionType.ARGCOMPLETE
-        assert bash_completion.commands == ["test-command"]
+        assert bash_completion.command == "test-command"
         assert bash_completion.shell == Shell.BASH
         assert "bash completion content" in bash_completion.content
 
