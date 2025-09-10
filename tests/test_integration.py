@@ -271,7 +271,13 @@ class TestEndToEndWorkflow:
             (package_dir / "__init__.py").write_text("import argcomplete\n")
 
             # Create METADATA structure for the new has_dependency function
-            metadata_dir = venv_path / "lib" / "python3.11" / "site-packages" / "argcomplete-2.0.0-info"
+            metadata_dir = (
+                venv_path
+                / "lib"
+                / "python3.11"
+                / "site-packages"
+                / "argcomplete-2.0.0-info"
+            )
             metadata_dir.mkdir(parents=True)
             metadata_file = metadata_dir / "METADATA"
             metadata_content = """Name: argcomplete

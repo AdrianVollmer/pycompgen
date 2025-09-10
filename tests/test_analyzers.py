@@ -142,9 +142,7 @@ class TestDetectCompletionType:
         mock_python_path.parent.mkdir(parents=True)
         mock_python_path.touch()
         mock_get_python.return_value = mock_python_path
-        mock_has_dep.side_effect = (
-            lambda package, dep: dep == "argcomplete"
-        )
+        mock_has_dep.side_effect = lambda package, dep: dep == "argcomplete"
         mock_find_commands.return_value = ["regular-command"]  # No hardcoded commands
 
         result = detect_completion_type(mock_package)
@@ -265,9 +263,15 @@ class TestHasDependency:
         """Test successful dependency detection."""
         # Create package structure with METADATA
         package_base = tmp_path / "test-package"
-        metadata_dir = package_base / "lib" / "python3.11" / "site-packages" / "test_package-1.0.0-info"
+        metadata_dir = (
+            package_base
+            / "lib"
+            / "python3.11"
+            / "site-packages"
+            / "test_package-1.0.0-info"
+        )
         metadata_dir.mkdir(parents=True)
-        
+
         metadata_file = metadata_dir / "METADATA"
         metadata_content = """Name: test-package
 Version: 1.0.0
@@ -289,9 +293,15 @@ This is the package description."""
         """Test when dependency is not found."""
         # Create package structure with METADATA
         package_base = tmp_path / "test-package"
-        metadata_dir = package_base / "lib" / "python3.11" / "site-packages" / "test_package-1.0.0-info"
+        metadata_dir = (
+            package_base
+            / "lib"
+            / "python3.11"
+            / "site-packages"
+            / "test_package-1.0.0-info"
+        )
         metadata_dir.mkdir(parents=True)
-        
+
         metadata_file = metadata_dir / "METADATA"
         metadata_content = """Name: test-package
 Version: 1.0.0
@@ -325,9 +335,15 @@ This is the package description."""
         """Test dependency detection with version constraints."""
         # Create package structure with METADATA
         package_base = tmp_path / "test-package"
-        metadata_dir = package_base / "lib" / "python3.11" / "site-packages" / "test_package-1.0.0-info"
+        metadata_dir = (
+            package_base
+            / "lib"
+            / "python3.11"
+            / "site-packages"
+            / "test_package-1.0.0-info"
+        )
         metadata_dir.mkdir(parents=True)
-        
+
         metadata_file = metadata_dir / "METADATA"
         metadata_content = """Name: test-package
 Version: 1.0.0
@@ -349,9 +365,15 @@ This is the package description."""
         """Test package name conversion from hyphen to underscore."""
         # Create package structure with METADATA for package with hyphen in name
         package_base = tmp_path / "my-test-package"
-        metadata_dir = package_base / "lib" / "python3.11" / "site-packages" / "my_test_package-1.0.0-info"
+        metadata_dir = (
+            package_base
+            / "lib"
+            / "python3.11"
+            / "site-packages"
+            / "my_test_package-1.0.0-info"
+        )
         metadata_dir.mkdir(parents=True)
-        
+
         metadata_file = metadata_dir / "METADATA"
         metadata_content = """Name: my-test-package
 Version: 1.0.0
