@@ -5,6 +5,10 @@ from typing import List, Optional
 
 from .models import InstalledPackage, CompletionPackage, CompletionType, PackageManager
 
+from .logger import get_logger
+
+logger = get_logger()
+
 
 def analyze_packages(packages: List[InstalledPackage]) -> List[CompletionPackage]:
     """Analyze packages to determine which support completions."""
@@ -37,25 +41,20 @@ def analyze_package(package: InstalledPackage) -> Optional[CompletionPackage]:
 
 def detect_completion_type(package: InstalledPackage) -> Optional[CompletionType]:
     """Detect if package uses click, or argcomplete completions."""
-
-    # Look for click or argcomplete in the package's environment
-    python_path = get_python_path(package)
-
-    if not python_path:
-        return None
-
-    if not package.package_path:
-        return None
+    result = None
 
     # Check for click
-    if has_dependency(python_path, package.package_path, "click"):
-        return CompletionType.CLICK
+    if has_dependency(package, "click"):
+        result = CompletionType.CLICK
 
     # Check for argcomplete
-    if has_dependency(python_path, package.package_path, "argcomplete"):
-        return CompletionType.ARGCOMPLETE
+    elif has_dependency(package, "argcomplete"):
+        result = CompletionType.ARGCOMPLETE
 
-    return None
+    if result:
+        logger.debug(f"{package.name} supports completion: {result}")
+
+    return result
 
 
 def get_python_path(package: InstalledPackage) -> Optional[Path]:
