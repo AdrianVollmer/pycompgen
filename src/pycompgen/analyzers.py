@@ -1,3 +1,4 @@
+import re
 import subprocess
 from pathlib import Path
 from typing import List, Optional
@@ -34,24 +35,27 @@ def analyze_package(package: InstalledPackage) -> Optional[CompletionPackage]:
     )
 
 
-def detect_completion_type(package: InstalledPackage) -> Optional[CompletionType]:
-    """Detect if package uses click, or argcomplete completions."""
+def has_dependency(package: InstalledPackage, dependency: str) -> bool:
+    """Check if a dependency is directly imported by the package."""
+    try:
+        slug = package.name.replace("-", "_")
+        package_path: Path = list(
+            package.path.rglob(f"lib/python*/site-packages/{slug}-*-info/")
+        )[0]
+    except IndexError:
+        return False
 
-    # Look for click or argcomplete in the package's environment
-    python_path = get_python_path(package)
+    metadata = open(package_path / "METADATA", "r").read()
 
-    if not python_path:
-        return None
+    # Split off header
+    if "\n\n" in metadata:
+        metadata = metadata.split("\n\n")[0]
 
-    # Check for click
-    if package.has_dependency("click"):
-        return CompletionType.CLICK
+    m = re.search(f"^Requires-Dist: {dependency}([^a-z-].+)?$", metadata, re.MULTILINE)
 
-    # Check for argcomplete
-    if package.has_dependency("argcomplete"):
-        return CompletionType.ARGCOMPLETE
-
-    return None
+    if m:
+        return True
+    return False
 
 
 def get_python_path(package: InstalledPackage) -> Optional[Path]:
@@ -66,6 +70,20 @@ def get_python_path(package: InstalledPackage) -> Optional[Path]:
         return None
 
     return python_path if python_path.exists() else None
+
+
+def detect_completion_type(package: InstalledPackage) -> Optional[CompletionType]:
+    """Detect if package uses click, or argcomplete completions."""
+
+    # Check for click
+    if has_dependency(package, "click"):
+        return CompletionType.CLICK
+
+    # Check for argcomplete
+    if has_dependency(package, "argcomplete"):
+        return CompletionType.ARGCOMPLETE
+
+    return None
 
 
 def find_package_commands(package: InstalledPackage) -> List[str]:
