@@ -262,13 +262,30 @@ class TestEndToEndWorkflow:
             python_exe.touch()
             python_exe.chmod(0o755)
 
-            # Create the package directory structure that package_path expects
+            # Create the package directory structure that the new has_dependency expects
             package_dir = (
                 venv_path / "lib" / "python3.11" / "site-packages" / "argcomplete"
             )
             package_dir.mkdir(parents=True)
             # Create a test Python file that imports argcomplete
             (package_dir / "__init__.py").write_text("import argcomplete\n")
+
+            # Create METADATA structure for the new has_dependency function
+            metadata_dir = (
+                venv_path
+                / "lib"
+                / "python3.11"
+                / "site-packages"
+                / "argcomplete-2.0.0-info"
+            )
+            metadata_dir.mkdir(parents=True)
+            metadata_file = metadata_dir / "METADATA"
+            metadata_content = """Name: argcomplete
+Version: 2.0.0
+Requires-Dist: argcomplete
+
+This package provides argcomplete functionality."""
+            metadata_file.write_text(metadata_content)
 
             # Mock pipx list output
             pipx_output = {
@@ -285,10 +302,6 @@ class TestEndToEndWorkflow:
                 subprocess.CalledProcessError(1, ["uv"]),
                 # pipx list
                 Mock(stdout=json.dumps(pipx_output), returncode=0),
-                # has_dependency check for click (fails)
-                Mock(returncode=1),
-                # has_dependency check for argcomplete (succeeds)
-                Mock(returncode=0),
                 # argcomplete completion generation (bash)
                 Mock(stdout="argcomplete completion output", returncode=0),
                 # argcomplete completion generation (zsh)
